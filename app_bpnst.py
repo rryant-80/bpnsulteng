@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # 1. Konfigurasi Halaman Streamlit ke Wide Mode
-st.set_page_config(layout="wide", page_title="Dashboard Keagrariaan BPN", page_icon="🏢")
+st.set_page_config(layout="wide", page_title="Dashboard BPN Sulteng", page_icon="🏢")
 
 # Custom CSS untuk layout kotak profil pejabat dan kartu metrik
 st.markdown("""
@@ -128,7 +128,7 @@ for col in num_cols_peg:
 # ==========================================
 # 3. SIDEBAR (HANYA BERISI MENU FILTER)
 # ==========================================
-st.sidebar.title("Filter Wilayah")
+st.sidebar.title("FILTER WILAYAH")
 
 list_kab = ["Sulawesi Tengah"] + sorted(list(df_wilayah['kabupaten_kota'].dropna().unique())) if not df_wilayah.empty else ["Sulawesi Tengah"]
 selected_kab = st.sidebar.selectbox("Kabupaten / Kota", list_kab)
@@ -160,7 +160,7 @@ if selected_kab != "Sulawesi Tengah":
 # ==========================================
 # 4. MAIN CONTENT MAIN LAYOUT
 # ==========================================
-st.title(f"🏢 Dashboard Kinerja & Agraria — {selected_kab}")
+st.title(f"🏢 Dashboard Kinerja BPN Sulawesi Tengah — {selected_kab}")
 if selected_kec != "Semua Kecamatan":
     st.subheader(f"Kecamatan: {selected_kec}")
 st.markdown("<br>", unsafe_allow_html=True)
@@ -180,15 +180,9 @@ with row_metrics[1]:
     tot_apl = df_wil_filtered['luas_apl'].sum()
     tot_adm = df_wil_filtered['luas_adm'].sum()
     pct_apl = (tot_apl / tot_adm * 100) if tot_adm > 0 else 0
-    st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL</div><div class="card-value">{format_lokal(tot_apl, True)} Ha</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL (Ha)</div><div class="card-value">{format_lokal(tot_apl, True)}</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
 
-with row_metrics[2]:
-    if selected_kab == "Sulawesi Tengah":
-        val_kec = df_wilayah['kecamatan'].nunique()
-        lbl_kec = "Total Kecamatan Se-Sulteng"
-    else:
-        val_kec = df_wil_filtered['kecamatan'].nunique()
-        lbl_kec = f"Kecamatan di {selected_kab}"
+with row_metrics[2]:    
     st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{format_lokal(val_kec, False)}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[3]:
