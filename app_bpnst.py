@@ -236,8 +236,9 @@ with row_metrics[5]:
         
         st.markdown(f"""
         <div style='font-size: 11px; color: #475569; line-height: 1.4; margin-top: -2px; padding-left: 5px;'>
-            <div>Target Pagu: <b>Rp {format_lokal(total_target, False)}</b></div>
-            <div>Realisasi DIPA: <span style='color:#27ae60; font-weight:bold;'>Rp {format_lokal(total_realisasi, False)}</span></div>
+            <div>TARGET PAGU: <b>Rp {format_lokal(total_target, False)}</b></div>
+            <div>TARGET PAGU: <span style='color:#000000; font-weight:bold;'>Rp {format_lokal(total_target, False)}</span></div>
+            <div>REALISASI: <span style='color:#27ae60; font-weight:bold;'>Rp {format_lokal(total_realisasi, False)}</span></div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -262,10 +263,9 @@ with col_left:
     with col_url1:
         df_kakan = df_peg_filtered[df_peg_filtered['jabatan'].str.contains("Kepala Kantor|Kakan|Kakanwil", case=False, na=False)]
         img_kakan = df_kakan.iloc[0]['url'] if not df_kakan.empty and pd.notna(df_kakan.iloc[0]['url']) else "https://via.placeholder.com/150"
-        st.markdown("<p style='text-align:center; font-weight:600; margin-bottom:2px; font-size:12px;'>URL 1 (Kepala Kantor)</p>", unsafe_allow_html=True)
         st.image(img_kakan, use_container_width=True)
         
-    st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural</p>", unsafe_allow_html=True)
+    st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural & Kinerja</p>", unsafe_allow_html=True)
     
     def render_dashboard_profile(jabatan_keyword):
         row = df_peg_filtered[df_peg_filtered['jabatan'].str.contains(jabatan_keyword, case=False, na=False)]
@@ -312,7 +312,7 @@ with col_right:
         x_axis_column = 'desa_kelurahan'
 
     # GRAFIK PERSIL (350-430px)
-    st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil per-Wilayah")
+    st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil")
     if not df_chart.empty:
         fig_batang1 = go.Figure()
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_persil'], name='Jumlah Persil', marker_color='#1d4ed8'))
@@ -325,7 +325,7 @@ with col_right:
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
     # --- GRAFIK BUKU TANAH (REVISI: MENJADI 4 BATANG BERHIMPITAN) ---
-    st.markdown("### 📖 Grafik Validasi Buku Tanah per-Wilayah")
+    st.markdown("### 📖 Grafik Validasi Buku Tanah & Prasertel")
     if not df_chart.empty:
         fig_batang2 = go.Figure()
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_bt'], name='Jumlah BT', marker_color='#6d28d9'))
