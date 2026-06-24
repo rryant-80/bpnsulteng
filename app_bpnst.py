@@ -237,7 +237,6 @@ with row_metrics[5]:
         st.markdown(f"""
         <div style='font-size: 11px; color: #475569; line-height: 1.4; margin-top: -2px; padding-left: 5px;'>
             <div>TARGET PAGU: <b>Rp {format_lokal(total_target, False)}</b></div>
-            <div>TARGET PAGU: <span style='color:#000000; font-weight:bold;'>Rp {format_lokal(total_target, False)}</span></div>
             <div>REALISASI: <span style='color:#27ae60; font-weight:bold;'>Rp {format_lokal(total_realisasi, False)}</span></div>
         </div>
         """, unsafe_allow_html=True)
