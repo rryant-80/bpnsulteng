@@ -58,7 +58,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Fungsi pemformat angka lokal (Titik ribuan, Koma desimal)
+# Fungsi pemformat angka lokal (Titik ribuan, Koma desimal untuk Luas Ha)
 def format_lokal(nilai, pakai_desimal=True):
     if pakai_desimal:
         teks = f"{nilai:,.2f}"
@@ -69,8 +69,9 @@ def format_lokal(nilai, pakai_desimal=True):
 # 2. Memuat Data dari Google Sheets via Secrets
 @st.cache_data(ttl=600)
 def load_data(sheet_id, gid):
+    # Menggunakan parameter thousands='.' agar pandas otomatis tahu bahwa titik adalah pemisah ribuan daerah Indonesia
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
-    return pd.read_csv(url)
+    return pd.read_csv(url, thousands='.')
 
 try:
     SPREADSHEET_ID = st.secrets["spreadsheet"]["id"]
@@ -95,23 +96,35 @@ for col in ['kabupaten_kota', 'nama', 'jabatan', 'kategori_asn']:
         df_pegawai[col] = df_pegawai[col].astype(str).str.strip()
 
 # =========================================================================
-# CLEANING & KONVERSI NUMERIK (MEMBERSIHKAN TITIK RIBUAN SECARA MURNI)
+# PERBAIKAN TOTAL KONVERSI ANGKA: Mencegah Kebocoran String .0 Akhir akibat Float
 # =========================================================================
-num_cols_wil = ['luas_adm', 'luas_apl', 'jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 'pra_btel', 'jumlah_su', 'jumlah_suvalid', 'pra_suel']
+num_cols_wil = [
+    'luas_adm', 'luas_apl', 'jumlah_persil', 'luas_persil', 'luas_persil_valid', 
+    'jumlah_kw456', 'luas_kw456', 'jumlah_bt', 'bt_valid', 'luas_persil_deliniasi', 
+    'pra_sertel', 'pra_btel', 'jumlah_su', 'jumlah_suvalid', 'pra_suel'
+]
+
 for col in num_cols_wil:
     if col in df_wilayah.columns:
-        # Menghapus titik pemisah ribuan bawaan string regional lokal Indonesia agar dibaca utuh oleh pandas
-        df_wilayah[col] = df_wilayah[col].astype(str).str.replace('.', '', regex=False).str.replace(',', '', regex=False)
+        # Jika pandas membaca kolom sebagai objek/string karena ada tanda titik pemisah ribuan
+        if df_wilayah[col].dtype == 'object':
+            df_wilayah[col] = df_wilayah[col].astype(str).str.replace('.', '', regex=False)
+        # Jika pandas telanjur membaca angka bersih sebagai float (misal: 1178.0), kita bersihkan ujungnya
+        elif df_wilayah[col].dtype == 'float64':
+            df_wilayah[col] = df_wilayah[col].fillna(0)
+            
         df_wilayah[col] = pd.to_numeric(df_wilayah[col], errors='coerce').fillna(0)
 
-# KONVERSI SATUAN LUAS: m2 ke Hektar (Ha)
+# KONVERSI SATUAN LUAS: m2 ke Hektar (Ha) -> Dibagi murni 10.000
 df_wilayah['luas_adm'] = df_wilayah['luas_adm'] / 10000
 df_wilayah['luas_apl'] = df_wilayah['luas_apl'] / 10000
 
+# Pembersihan data DIPA Pegawai
 num_cols_peg = ['target_dipa', 'realisasi_dipa']
 for col in num_cols_peg:
     if col in df_pegawai.columns:
-        df_pegawai[col] = df_pegawai[col].astype(str).str.replace('Rp', '', regex=False).str.replace('.', '', regex=False).str.replace(' ', '', regex=False)
+        if df_pegawai[col].dtype == 'object':
+            df_pegawai[col] = df_pegawai[col].astype(str).str.replace('Rp', '', regex=False).str.replace('.', '', regex=False).str.replace(' ', '', regex=False)
         df_pegawai[col] = pd.to_numeric(df_pegawai[col], errors='coerce').fillna(0)
 
 
@@ -191,7 +204,6 @@ with row_metrics[3]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🏡 Desa / Kelurahan</div><div class="card-value">{format_lokal(val_desa, False)}</div><div class="card-subtext">{sub_desa_text}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[4]:
-    # NILAI CARD JUMLAH KW456 (Murni dari jumlahan baris terdata tanpa faktor pengali)
     if selected_kab == "Sulawesi Tengah":
         val_kw = int(df_wilayah['jumlah_kw456'].sum())
         lbl_kw = "Total KW456 Se-Sulteng"
