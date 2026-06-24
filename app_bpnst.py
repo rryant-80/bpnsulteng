@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 # 1. Konfigurasi Halaman Streamlit ke Wide Mode
 st.set_page_config(layout="wide", page_title="Dashboard Keagrariaan BPN", page_icon="🏢")
 
-# Custom CSS untuk layout profil pejabat dan kartu metrik
+# Custom CSS untuk layout profil pejabat dan kartu metrik dengan standar format lokal
 st.markdown("""
 <style>
     .profile-box {
@@ -45,7 +45,7 @@ st.markdown("""
         letter-spacing: 0.5px;
     }
     .card-value {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 700;
         color: #0f172a;
         margin: 2px 0;
@@ -56,6 +56,17 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Fungsi pemformat angka kustom (Titik ribuan, Koma desimal)
+def format_lokal(nilai, pakai_desimal=True):
+    if pakai_desimal:
+        # Format dua angka belakang koma standar, lalu ubah separatornya
+        teks = f"{nilai:,.2f}"
+        # Tukar koma menjadi titik sementara, lalu titik menjadi koma asli
+        return teks.replace(",", "X").replace(".", ",").replace("X", ".")
+    else:
+        teks = f"{int(nilai):,}"
+        return teks.replace(",", ".")
 
 # 2. Memuat Data dari Google Sheets via Secrets
 @st.cache_data(ttl=600)
@@ -86,16 +97,19 @@ for col in ['kabupaten_kota', 'nama', 'jabatan', 'kategori_asn']:
     if col in df_pegawai.columns:
         df_pegawai[col] = df_pegawai[col].astype(str).str.strip()
 
-# Konversi tipe data numerik dan bersihkan karakter non-numerik (seperti titik/koma pemisah ribuan dari string)
+# Konversi tipe data numerik dasar
 num_cols_wil = ['luas_adm', 'luas_apl', 'jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 'pra_btel', 'jumlah_su', 'jumlah_suvalid', 'pra_suel']
 for col in num_cols_wil:
     if col in df_wilayah.columns:
         df_wilayah[col] = pd.to_numeric(df_wilayah[col].astype(str).str.replace('.', '').str.replace(',', ''), errors='coerce').fillna(0)
 
+# KONVERSI SATUAN: m2 ke Ha (Dibagi 10.000)
+df_wilayah['luas_adm'] = df_wilayah['luas_adm'] / 10000
+df_wilayah['luas_apl'] = df_wilayah['luas_apl'] / 10000
+
 num_cols_peg = ['target_dipa', 'realisasi_dipa']
 for col in num_cols_peg:
     if col in df_pegawai.columns:
-        # Menangani pembersihan jika data angka di spreadsheet dibaca sebagai string berformat rupiah
         df_pegawai[col] = df_pegawai[col].astype(str).str.replace('Rp', '').str.replace('.', '').str.replace(',', '').str.replace(' ', '')
         df_pegawai[col] = pd.to_numeric(df_pegawai[col], errors='coerce').fillna(0)
 
@@ -119,14 +133,12 @@ selected_kec = st.sidebar.selectbox("Kecamatan", list_kec)
 # ==========================================
 # PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
 # ==========================================
-# Perbaikan Utama: Menggunakan .str.contains() agar "Palu" bisa COCOK dengan "Kantor Pertanahan Kota Palu"
 df_peg_filtered = df_pegawai.copy()
 if selected_kab != "Sulawesi Tengah":
     df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
 else:
     df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains("Kanwil|Provinsi|Sulteng", case=False, na=False)]
 
-# Penyiapan filter data wilayah utama
 df_wil_filtered = df_wilayah.copy()
 if selected_kab != "Sulawesi Tengah":
     df_wil_filtered = df_wil_filtered[df_wil_filtered['kabupaten_kota'] == selected_kab]
@@ -151,13 +163,14 @@ with row_metrics[0]:
     jumlah_sdm = df_peg_filtered['nama'].nunique()
     breakdown_asn = df_peg_filtered.groupby('kategori_asn')['nama'].count().to_dict()
     sub_asn_text = ", ".join([f"{k}: {v}" for k, v in breakdown_asn.items()]) if breakdown_asn else "PNS: 0, PPNPN: 0"
-    st.markdown(f'<div class="custom-card"><div class="card-title">👥 Jumlah SDM</div><div class="card-value">{jumlah_sdm}</div><div class="card-subtext">{sub_asn_text}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="custom-card"><div class="card-title">👥 Jumlah SDM</div><div class="card-value">{format_lokal(jumlah_sdm, False)}</div><div class="card-subtext">{sub_asn_text}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[1]:
     tot_apl = df_wil_filtered['luas_apl'].sum()
     tot_adm = df_wil_filtered['luas_adm'].sum()
     pct_apl = (tot_apl / tot_adm * 100) if tot_adm > 0 else 0
-    st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL</div><div class="card-value">{tot_apl:,.1f} Ha</div><div class="card-subtext">{pct_apl:.2f}% dari Luas ADM</div></div>', unsafe_allow_html=True)
+    # Menggunakan format_lokal untuk tampilan desimal koma asli daerah Indonesia
+    st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL</div><div class="card-value">{format_lokal(tot_apl, True)} Ha</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
 
 with row_metrics[2]:
     if selected_kab == "Sulawesi Tengah":
@@ -166,7 +179,7 @@ with row_metrics[2]:
     else:
         val_kec = df_wil_filtered['kecamatan'].nunique()
         lbl_kec = f"Kecamatan di {selected_kab}"
-    st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{val_kec}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{format_lokal(val_kec, False)}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[3]:
     if selected_kab == "Sulawesi Tengah":
@@ -175,7 +188,7 @@ with row_metrics[3]:
     else:
         val_desa = df_wil_filtered['desa_kelurahan'].nunique()
         sub_desa_text = "Total Desa & Kelurahan"
-    st.markdown(f'<div class="custom-card"><div class="card-title">🏡 Desa / Kelurahan</div><div class="card-value">{val_desa}</div><div class="card-subtext">{sub_desa_text}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="custom-card"><div class="card-title">🏡 Desa / Kelurahan</div><div class="card-value">{format_lokal(val_desa, False)}</div><div class="card-subtext">{sub_desa_text}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[4]:
     if selected_kab == "Sulawesi Tengah":
@@ -184,7 +197,7 @@ with row_metrics[4]:
     else:
         val_kw = int(df_wil_filtered['jumlah_kw456'].sum())
         lbl_kw = "Total Berkas KW456"
-    st.markdown(f'<div class="custom-card"><div class="card-title">📂 Jumlah KW456</div><div class="card-value">{val_kw}</div><div class="card-subtext">{lbl_kw}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="custom-card"><div class="card-title">📂 Jumlah KW456</div><div class="card-value">{format_lokal(val_kw, False)}</div><div class="card-subtext">{lbl_kw}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[5]:
     total_target = df_peg_filtered['target_dipa'].sum()
@@ -199,11 +212,11 @@ with row_metrics[5]:
             textinfo='percent',
             marker=dict(colors=['#2563eb', '#ef4444'])
         )])
+        # PERBAIKAN: Menyederhanakan penempatan legend untuk menghindari bug Plotly update_layout()
         fig_pie.update_layout(
             margin=dict(t=5, b=5, l=5, r=5), 
             height=75, 
-            showlegend=True,
-            legend=dict(font=dict(size=9), yanchor="center", y=0.5, xanchor="left", x=1.1)
+            showlegend=True
         )
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
@@ -218,7 +231,6 @@ st.markdown("<hr>", unsafe_allow_html=True)
 col_left, col_right = st.columns([4, 8])
 
 with col_left:
-    # --- SUB-ROW FOTO URL 2 DAN URL 1 ---
     col_url2, col_url1 = st.columns(2)
     
     with col_url2:
@@ -235,9 +247,7 @@ with col_left:
         
     st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural</p>", unsafe_allow_html=True)
     
-    # --- FUNGSI MENCETAK PROFIL STRUKTURAL ---
     def render_dashboard_profile(jabatan_keyword):
-        # Menggunakan regex atau substring agar pencarian jabatan fleksibel
         row = df_peg_filtered[df_peg_filtered['jabatan'].str.contains(jabatan_keyword, case=False, na=False)]
         if not row.empty:
             row = row.iloc[0]
@@ -256,33 +266,22 @@ with col_left:
                         <td style="width:75%; border:none; padding-left:12px; vertical-align:top; background:transparent;">
                             <div class="profile-name">{row['nama']}</div>
                             <div class="profile-title">{row['jabatan']}</div>
-                            <div class="profile-target">Target: Rp {target:,.0f}</div>
+                            <div class="profile-target">Target: Rp {format_lokal(target, False)}</div>
                         </td>
                     </tr>
                 </table>
             </div>
             """, unsafe_allow_html=True)
-            # Grafik Batang Representatif Kinerja DIPA Jabatan Terkait
             st.progress(min(float(pct/100), 1.0))
-            st.markdown(f"<p style='font-size:11px; margin-top:-8px; margin-bottom:12px; color:#475569; text-align:right;'>Realisasi: <b>{pct:.2f}%</b> (Rp {realisasi:,.0f})</p>", unsafe_allow_html=True)
+            st.markdown(f"<p style='font-size:11px; margin-top:-8px; margin-bottom:12px; color:#475569; text-align:right;'>Realisasi: <b>{format_lokal(pct, True)}%</b> (Rp {format_lokal(realisasi, False)})</p>", unsafe_allow_html=True)
         else:
             st.caption(f"⚠️ Jabatan '{jabatan_keyword}' tidak ditemukan di wilayah ini.")
 
-    # 6 Urutan Struktural (Menggunakan potongan kata kunci kunci yang aman dari variasi pengetikan)
-    order_struktural = [
-        "Tata Usaha",
-        "Survei dan Pemetaan",
-        "Penetapan Hak",
-        "Penataan",
-        "Pengadaan Tanah",
-        "Sengketa"
-    ]
-    
+    order_struktural = ["Tata Usaha", "Survei dan Pemetaan", "Penetapan Hak", "Penataan", "Pengadaan Tanah", "Sengketa"]
     for jabatan in order_struktural:
         render_dashboard_profile(jabatan)
 
 with col_right:
-    # Pengelompokkan sumbu X berdasarkan filter wilayah yang aktif terpilih
     if selected_kab == "Sulawesi Tengah":
         df_chart = df_wilayah.groupby('kabupaten_kota').sum().reset_index()
         x_axis_column = 'kabupaten_kota'
@@ -302,18 +301,8 @@ with col_right:
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_suvalid'], name='SU Valid', marker_color='#10b981'))
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_suel'], name='Pra SUEL', marker_color='#f59e0b'))
         
-        fig_batang1.update_layout(
-            barmode='group',
-            xaxis_title="Daftar Wilayah",
-            yaxis_title="Volume",
-            legend_orientation="h",
-            legend=dict(x=0, y=1.12),
-            margin=dict(t=40, b=30),
-            height=430
-        )
+        fig_batang1.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=430)
         st.plotly_chart(fig_batang1, use_container_width=True)
-    else:
-        st.info("Data wilayah tidak tersedia.")
 
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
@@ -325,13 +314,5 @@ with col_right:
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['bt_valid'], name='BT Valid', marker_color='#059669'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_btel'], name='Pra BTEL', marker_color='#d97706'))
         
-        fig_batang2.update_layout(
-            barmode='group',
-            xaxis_title="Daftar Wilayah",
-            yaxis_title="Volume",
-            legend_orientation="h",
-            legend=dict(x=0, y=1.12),
-            margin=dict(t=40, b=30),
-            height=430
-        )
+        fig_batang2.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=430)
         st.plotly_chart(fig_batang2, use_container_width=True)
