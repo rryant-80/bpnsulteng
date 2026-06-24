@@ -185,10 +185,10 @@ with row_metrics[1]:
 with row_metrics[2]:
     if selected_kab == "Sulawesi Tengah":
         val_kec = df_wilayah['kecamatan'].nunique()
-        
+        lbl_kec = "Total Kecamatan Se-Sulteng"
     else:
         val_kec = df_wil_filtered['kecamatan'].nunique()
-        
+        lbl_kec = f"Kecamatan di {selected_kab}"
     st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{format_lokal(val_kec, False)}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[3]:
