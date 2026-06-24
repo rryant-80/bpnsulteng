@@ -69,7 +69,6 @@ def format_lokal(nilai, pakai_desimal=True):
 # 2. Memuat Data dari Google Sheets via Secrets
 @st.cache_data(ttl=600)
 def load_data(sheet_id, gid):
-    # Menggunakan parameter thousands='.' agar pandas otomatis tahu bahwa titik adalah pemisah ribuan daerah Indonesia
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
     return pd.read_csv(url, thousands='.')
 
@@ -106,16 +105,14 @@ num_cols_wil = [
 
 for col in num_cols_wil:
     if col in df_wilayah.columns:
-        # Jika pandas membaca kolom sebagai objek/string karena ada tanda titik pemisah ribuan
         if df_wilayah[col].dtype == 'object':
             df_wilayah[col] = df_wilayah[col].astype(str).str.replace('.', '', regex=False)
-        # Jika pandas telanjur membaca angka bersih sebagai float (misal: 1178.0), kita bersihkan ujungnya
         elif df_wilayah[col].dtype == 'float64':
             df_wilayah[col] = df_wilayah[col].fillna(0)
             
         df_wilayah[col] = pd.to_numeric(df_wilayah[col], errors='coerce').fillna(0)
 
-# KONVERSI SATUAN LUAS: m2 ke Hektar (Ha) -> Dibagi murni 10.000
+# KONVERSI SATUAN LUAS: m2 ke Hektar (Ha)
 df_wilayah['luas_adm'] = df_wilayah['luas_adm'] / 10000
 df_wilayah['luas_apl'] = df_wilayah['luas_apl'] / 10000
 
@@ -315,7 +312,7 @@ with col_right:
         df_chart = df_wil_filtered.groupby('desa_kelurahan').sum().reset_index()
         x_axis_column = 'desa_kelurahan'
 
-    # GRAFIK PERSIL
+    # GRAFIK PERSIL (350-430px)
     st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil per-Wilayah")
     if not df_chart.empty:
         fig_batang1 = go.Figure()
@@ -328,12 +325,23 @@ with col_right:
 
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
-    # GRAFIK BUKU TANAH
+    # --- GRAFIK BUKU TANAH (REVISI: MENJADI 4 BATANG BERHIMPITAN) ---
     st.markdown("### 📖 Grafik Validasi Buku Tanah per-Wilayah")
     if not df_chart.empty:
         fig_batang2 = go.Figure()
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_bt'], name='Jumlah BT', marker_color='#6d28d9'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['bt_valid'], name='BT Valid', marker_color='#059669'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_btel'], name='Pra BTEL', marker_color='#d97706'))
-        fig_batang2.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=430)
+        # Penambahan Trace Baru ke-4: pra_sertel (Warna Merah Bata / Coral)
+        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_sertel'], name='Pra SERTEL', marker_color='#e74c3c'))
+        
+        fig_batang2.update_layout(
+            barmode='group', 
+            xaxis_title="Daftar Wilayah", 
+            yaxis_title="Volume", 
+            legend_orientation="h", 
+            legend=dict(x=0, y=1.12), 
+            margin=dict(t=40, b=30), 
+            height=430
+        )
         st.plotly_chart(fig_batang2, use_container_width=True)
