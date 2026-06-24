@@ -95,12 +95,12 @@ for col in ['kabupaten_kota', 'nama', 'jabatan', 'kategori_asn']:
         df_pegawai[col] = df_pegawai[col].astype(str).str.strip()
 
 # =========================================================================
-# KOREKSI TOTAL VALIDASI NUMERIK (MEMBERSIHKAN TITIK RIBUAN GOOGLE SHEETS)
+# CLEANING & KONVERSI NUMERIK (MEMBERSIHKAN TITIK RIBUAN SECARA MURNI)
 # =========================================================================
 num_cols_wil = ['luas_adm', 'luas_apl', 'jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 'pra_btel', 'jumlah_su', 'jumlah_suvalid', 'pra_suel']
 for col in num_cols_wil:
     if col in df_wilayah.columns:
-        # Hilangkan titik pemisah ribuan bawaan string regional lokal Indonesia
+        # Menghapus titik pemisah ribuan bawaan string regional lokal Indonesia agar dibaca utuh oleh pandas
         df_wilayah[col] = df_wilayah[col].astype(str).str.replace('.', '', regex=False).str.replace(',', '', regex=False)
         df_wilayah[col] = pd.to_numeric(df_wilayah[col], errors='coerce').fillna(0)
 
@@ -173,7 +173,6 @@ with row_metrics[1]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL</div><div class="card-value">{format_lokal(tot_apl, True)} Ha</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
 
 with row_metrics[2]:
-    # KOREKSI: Jumlah unik kecamatan se-kabupaten_kota atau se-provinsi
     if selected_kab == "Sulawesi Tengah":
         val_kec = df_wilayah['kecamatan'].nunique()
         lbl_kec = "Total Kecamatan Se-Sulteng"
@@ -183,7 +182,6 @@ with row_metrics[2]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{format_lokal(val_kec, False)}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[3]:
-    # KOREKSI: Jumlah unik desa/kelurahan se-kabupaten_kota atau se-provinsi
     if selected_kab == "Sulawesi Tengah":
         val_desa = df_wilayah['desa_kelurahan'].nunique()
         sub_desa_text = "Total Desa/Kel Se-Sulteng"
@@ -193,7 +191,7 @@ with row_metrics[3]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🏡 Desa / Kelurahan</div><div class="card-value">{format_lokal(val_desa, False)}</div><div class="card-subtext">{sub_desa_text}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[4]:
-    # KOREKSI INTEGRAL: Akumulasi nilai asli sum() kolom jumlah_kw456 (Akurat setelah pembersihan titik)
+    # NILAI CARD JUMLAH KW456 (Murni dari jumlahan baris terdata tanpa faktor pengali)
     if selected_kab == "Sulawesi Tengah":
         val_kw = int(df_wilayah['jumlah_kw456'].sum())
         lbl_kw = "Total KW456 Se-Sulteng"
@@ -239,9 +237,9 @@ with row_metrics[5]:
 st.markdown("<hr>", unsafe_allow_html=True)
 
 
-# ------------------------------------------
-# LAYOUT UTAMA: KIRI (PROFIL PEJABAT) vs KANAN (GRAFIK BESAR)
-# ------------------------------------------
+# ==========================================
+# LAYOUT UTAMA: KIRI (PROFIL) vs KANAN (GRAFIK BESAR)
+# ==========================================
 col_left, col_right = st.columns([4, 8])
 
 with col_left:
@@ -261,7 +259,6 @@ with col_left:
         
     st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural</p>", unsafe_allow_html=True)
     
-    # --- PENYUSUNAN STRUKTUR BARU ANTI-LEAK HTML SECARA TOTAL ---
     def render_dashboard_profile(jabatan_keyword):
         row = df_peg_filtered[df_peg_filtered['jabatan'].str.contains(jabatan_keyword, case=False, na=False)]
         if not row.empty:
@@ -271,10 +268,8 @@ with col_left:
             pct = (realisasi / target * 100) if target > 0 else 0
             img_url = row['url'] if pd.notna(row['url']) and str(row['url']).startswith("http") else "https://via.placeholder.com/150"
             
-            # Progress bar kustom mini internal div
             progress_bar_container = f'<div style="background-color:#e2e8f0; border-radius:4px; height:10px; width:100%; margin:6px 0 4px 0; overflow:hidden;"><div style="background-color:#2ecc71; width:{min(pct, 100.0)}%; height:100%; border-radius:4px;"></div></div>'
             
-            # Mengunci string satu baris penuh tanpa jeda multiline enter untuk menjamin eksekusi murni di browser
             html_content = (
                 '<div class="profile-box">'
                     '<div style="display:flex; align-items:flex-start;">'
