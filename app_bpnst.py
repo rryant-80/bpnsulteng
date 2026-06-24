@@ -257,7 +257,6 @@ with col_left:
     with col_url2:
         df_bendahara = df_peg_filtered[df_peg_filtered['jabatan'].str.contains("Bendahara", case=False, na=False)]
         img_bendahara = df_bendahara.iloc[0]['url'] if not df_bendahara.empty and pd.notna(df_bendahara.iloc[0]['url']) else "https://via.placeholder.com/150"
-        st.markdown("<p style='text-align:center; font-weight:600; margin-bottom:2px; font-size:12px;'>URL 2 (Bendahara)</p>", unsafe_allow_html=True)
         st.image(img_bendahara, use_container_width=True)
         
     with col_url1:
