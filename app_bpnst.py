@@ -6,14 +6,14 @@ import plotly.graph_objects as go
 # 1. Konfigurasi Halaman Streamlit ke Wide Mode
 st.set_page_config(layout="wide", page_title="Dashboard Keagrariaan BPN", page_icon="🏢")
 
-# Custom CSS untuk layout profil pejabat dan kartu metrik dengan standar format lokal
+# Custom CSS untuk menyatukan progress bar di dalam kotak putih profil pejabat
 st.markdown("""
 <style>
     .profile-box {
         border: 1px solid #e2e8f0;
         border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 4px;
+        padding: 14px;
+        margin-bottom: 12px;
         background-color: #ffffff;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
@@ -30,6 +30,7 @@ st.markdown("""
     .profile-target {
         font-size: 11px;
         color: #059669;
+        margin-bottom: 8px;
     }
     .custom-card {
         background-color: #f8fafc;
@@ -57,12 +58,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Fungsi pemformat angka kustom (Titik ribuan, Koma desimal)
+# Fungsi pemformat angka lokal (Titik ribuan, Koma desimal)
 def format_lokal(nilai, pakai_desimal=True):
     if pakai_desimal:
-        # Format dua angka belakang koma standar, lalu ubah separatornya
         teks = f"{nilai:,.2f}"
-        # Tukar koma menjadi titik sementara, lalu titik menjadi koma asli
         return teks.replace(",", "X").replace(".", ",").replace("X", ".")
     else:
         teks = f"{int(nilai):,}"
@@ -80,7 +79,6 @@ except KeyError:
     st.error("Spreadsheet ID belum dikonfigurasi di Streamlit Secrets.")
     st.stop()
 
-# Memuat kedua dataset
 try:
     df_wilayah = load_data(SPREADSHEET_ID, "1848496896")
     df_pegawai = load_data(SPREADSHEET_ID, "1168898330")
@@ -97,13 +95,12 @@ for col in ['kabupaten_kota', 'nama', 'jabatan', 'kategori_asn']:
     if col in df_pegawai.columns:
         df_pegawai[col] = df_pegawai[col].astype(str).str.strip()
 
-# Konversi tipe data numerik dasar
+# Konversi tipe data numerik dasar & Penyesuaian m2 ke Hektar (Ha)
 num_cols_wil = ['luas_adm', 'luas_apl', 'jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 'pra_btel', 'jumlah_su', 'jumlah_suvalid', 'pra_suel']
 for col in num_cols_wil:
     if col in df_wilayah.columns:
         df_wilayah[col] = pd.to_numeric(df_wilayah[col].astype(str).str.replace('.', '').str.replace(',', ''), errors='coerce').fillna(0)
 
-# KONVERSI SATUAN: m2 ke Ha (Dibagi 10.000)
 df_wilayah['luas_adm'] = df_wilayah['luas_adm'] / 10000
 df_wilayah['luas_apl'] = df_wilayah['luas_apl'] / 10000
 
@@ -155,9 +152,9 @@ if selected_kec != "Semua Kecamatan":
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ------------------------------------------
-# BARIS ATAS: METRICS & PIE CHART MACRO DIPA
+# BARIS ATAS: METRICS & PIE CHART MACRO DIPA (DIBESARKAN)
 # ------------------------------------------
-row_metrics = st.columns([2, 2, 2, 2, 2, 2.5])
+row_metrics = st.columns([1.8, 1.8, 1.8, 1.8, 1.8, 3.2])
 
 with row_metrics[0]:
     jumlah_sdm = df_peg_filtered['nama'].nunique()
@@ -169,7 +166,6 @@ with row_metrics[1]:
     tot_apl = df_wil_filtered['luas_apl'].sum()
     tot_adm = df_wil_filtered['luas_adm'].sum()
     pct_apl = (tot_apl / tot_adm * 100) if tot_adm > 0 else 0
-    # Menggunakan format_lokal untuk tampilan desimal koma asli daerah Indonesia
     st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL</div><div class="card-value">{format_lokal(tot_apl, True)} Ha</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
 
 with row_metrics[2]:
@@ -200,6 +196,7 @@ with row_metrics[4]:
     st.markdown(f'<div class="custom-card"><div class="card-title">📂 Jumlah KW456</div><div class="card-value">{format_lokal(val_kw, False)}</div><div class="card-subtext">{lbl_kw}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[5]:
+    # --- VISUALISASI PIE CHART MAJU (UKURAN BESAR & COLOR REVISED) ---
     total_target = df_peg_filtered['target_dipa'].sum()
     total_realisasi = df_peg_filtered['realisasi_dipa'].sum()
     sisa_dipa = max(0, total_target - total_realisasi)
@@ -209,14 +206,14 @@ with row_metrics[5]:
             labels=['Realisasi DIPA', 'Sisa Target'],
             values=[total_realisasi, sisa_dipa],
             hole=.35,
-            textinfo='percent',
-            marker=dict(colors=['#2563eb', '#ef4444'])
+            textinfo='percent+value',
+            marker=dict(colors=['#2ecc71', '#f1c40f']) # REVISI WARNA: Hijau Realisasi, Kuning Sisa
         )])
-        # PERBAIKAN: Menyederhanakan penempatan legend untuk menghindari bug Plotly update_layout()
         fig_pie.update_layout(
             margin=dict(t=5, b=5, l=5, r=5), 
-            height=75, 
-            showlegend=True
+            height=150, # REVISI: Mengembangkan kapasitas dimensi chart tinggi 2x lipat
+            showlegend=True,
+            legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5) # REVISI: Legend dipindah ke bawah grafik
         )
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
@@ -226,11 +223,12 @@ st.markdown("<hr>", unsafe_allow_html=True)
 
 
 # ------------------------------------------
-# LAYOUT UTAMA: KIRI (PROFIL & IMAGES) vs KANAN (2 GRAFIK BESAR)
+# LAYOUT UTAMA: KIRI (KARTU PUTIH PROFIL INTEGRAL) vs KANAN (2 GRAFIK BESAR)
 # ------------------------------------------
 col_left, col_right = st.columns([4, 8])
 
 with col_left:
+    # --- SUB-ROW FOTO URL 2 DAN URL 1 ---
     col_url2, col_url1 = st.columns(2)
     
     with col_url2:
@@ -247,6 +245,7 @@ with col_left:
         
     st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural</p>", unsafe_allow_html=True)
     
+    # --- FUNGSI BARU MENCETAK PROFIL STRUKTURAL KESATUAN INTEGRAL ---
     def render_dashboard_profile(jabatan_keyword):
         row = df_peg_filtered[df_peg_filtered['jabatan'].str.contains(jabatan_keyword, case=False, na=False)]
         if not row.empty:
@@ -256,6 +255,14 @@ with col_left:
             pct = (realisasi / target * 100) if target > 0 else 0
             img_url = row['url'] if pd.notna(row['url']) and str(row['url']).startswith("http") else "https://via.placeholder.com/150"
             
+            # Progress bar HTML kustom untuk disisipkan langsung ke dalam struktur tabel kotak putih
+            progress_html = f"""
+            <div style="background-color: #e2e8f0; border-radius: 4px; height: 8px; width: 100%; margin-top: 6px;">
+                <div style="background-color: #3b82f6; width: {min(pct, 100.0)}%; height: 100%; border-radius: 4px;"></div>
+            </div>
+            """
+            
+            # Penyusunan elemen profil, angka target, realisasi, dan bar menjadi satu kesatuan dalam Kotak Putih
             st.markdown(f"""
             <div class="profile-box">
                 <table style="width:100%; border:none; background:transparent;">
@@ -266,22 +273,25 @@ with col_left:
                         <td style="width:75%; border:none; padding-left:12px; vertical-align:top; background:transparent;">
                             <div class="profile-name">{row['nama']}</div>
                             <div class="profile-title">{row['jabatan']}</div>
-                            <div class="profile-target">Target: Rp {format_lokal(target, False)}</div>
+                            <div class="profile-target" style="margin-bottom:2px;">Target: Rp {format_lokal(target, False)}</div>
+                            {progress_html}
+                            <div style='font-size:10px; margin-top:4px; color:#475569; text-align:right;'>
+                                Realisasi: <b>{format_lokal(pct, True)}%</b> (Rp {format_lokal(realisasi, False)})
+                            </div>
                         </td>
                     </tr>
                 </table>
             </div>
             """, unsafe_allow_html=True)
-            st.progress(min(float(pct/100), 1.0))
-            st.markdown(f"<p style='font-size:11px; margin-top:-8px; margin-bottom:12px; color:#475569; text-align:right;'>Realisasi: <b>{format_lokal(pct, True)}%</b> (Rp {format_lokal(realisasi, False)})</p>", unsafe_allow_html=True)
         else:
             st.caption(f"⚠️ Jabatan '{jabatan_keyword}' tidak ditemukan di wilayah ini.")
 
     order_struktural = ["Tata Usaha", "Survei dan Pemetaan", "Penetapan Hak", "Penataan", "Pengadaan Tanah", "Sengketa"]
-    for jabatan in order_struktural:
-        render_dashboard_profile(jabatan)
+    for java in order_struktural:
+        render_dashboard_profile(java)
 
 with col_right:
+    # Penentuan poros sumbu absis grafik
     if selected_kab == "Sulawesi Tengah":
         df_chart = df_wilayah.groupby('kabupaten_kota').sum().reset_index()
         x_axis_column = 'kabupaten_kota'
