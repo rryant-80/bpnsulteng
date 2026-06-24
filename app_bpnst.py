@@ -99,7 +99,9 @@ for col in ['kabupaten_kota', 'nama', 'jabatan', 'kategori_asn']:
 num_cols_wil = ['luas_adm', 'luas_apl', 'jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 'pra_btel', 'jumlah_su', 'jumlah_suvalid', 'pra_suel']
 for col in num_cols_wil:
     if col in df_wilayah.columns:
-        df_wilayah[col] = pd.to_numeric(df_wilayah[col].astype(str).str.replace('.', '').str.replace(',', ''), errors='coerce').fillna(0)
+        # Hapus titik pemisah ribuan jika ada agar konversi numerik berjalan lancar
+        df_wilayah[col] = df_wilayah[col].astype(str).str.replace('.', '').str.replace(',', '')
+        df_wilayah[col] = pd.to_numeric(df_wilayah[col], errors='coerce').fillna(0)
 
 df_wilayah['luas_adm'] = df_wilayah['luas_adm'] / 10000
 df_wilayah['luas_apl'] = df_wilayah['luas_apl'] / 10000
@@ -169,34 +171,36 @@ with row_metrics[1]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL</div><div class="card-value">{format_lokal(tot_apl, True)} Ha</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
 
 with row_metrics[2]:
+    # REVISI LOGIKA KECAMATAN SULTENG
     if selected_kab == "Sulawesi Tengah":
-        val_kec = df_wilayah['kabupaten_kota'].nunique()
-        lbl_kec = "Total Kabupaten/Kota"
+        val_kec = df_wilayah['kecamatan'].nunique()
+        lbl_kec = "Total Kecamatan Se-Sulteng"
     else:
         val_kec = df_wil_filtered['kecamatan'].nunique()
         lbl_kec = f"Kecamatan di {selected_kab}"
     st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{format_lokal(val_kec, False)}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[3]:
+    # REVISI LOGIKA DESA/KELURAHAN SULTENG
     if selected_kab == "Sulawesi Tengah":
-        val_desa = df_wilayah['kabupaten_kota'].nunique()
-        sub_desa_text = "Seluruh Kabupaten/Kota"
+        val_desa = df_wilayah['desa_kelurahan'].nunique()
+        sub_desa_text = "Total Desa/Kel Se-Sulteng"
     else:
         val_desa = df_wil_filtered['desa_kelurahan'].nunique()
         sub_desa_text = "Total Desa & Kelurahan"
     st.markdown(f'<div class="custom-card"><div class="card-title">🏡 Desa / Kelurahan</div><div class="card-value">{format_lokal(val_desa, False)}</div><div class="card-subtext">{sub_desa_text}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[4]:
+    # REVISI LOGIKA TOTAL KW456 SULTENG & KABUPATEN (SUM DARI KOLOM jumlah_kw456)
     if selected_kab == "Sulawesi Tengah":
-        val_kw = df_wilayah['kabupaten_kota'].nunique()
-        lbl_kw = "Kabupaten/Kota Terdata"
+        val_kw = int(df_wilayah['jumlah_kw456'].sum())
+        lbl_kw = "Total KW456 Se-Sulteng"
     else:
         val_kw = int(df_wil_filtered['jumlah_kw456'].sum())
-        lbl_kw = "Total Berkas KW456"
+        lbl_kw = f"Total KW456 di {selected_kab}"
     st.markdown(f'<div class="custom-card"><div class="card-title">📂 Jumlah KW456</div><div class="card-value">{format_lokal(val_kw, False)}</div><div class="card-subtext">{lbl_kw}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[5]:
-    # --- REVISI: GRAFIK BAR HORISONTAL MAKRO SUB-TOTAL DIPA ---
     total_target = df_peg_filtered['target_dipa'].sum()
     total_realisasi = df_peg_filtered['realisasi_dipa'].sum()
     sisa_dipa = max(0, total_target - total_realisasi)
@@ -204,13 +208,11 @@ with row_metrics[5]:
     
     if total_target > 0:
         fig_macro_bar = go.Figure()
-        # Segment 1: Realisasi (Hijau)
         fig_macro_bar.add_trace(go.Bar(
             y=['DIPA'], x=[total_realisasi], name='Realisasi DIPA',
             orientation='h', marker_color='#2ecc71',
             text=f"{format_lokal(pct_macro, True)}%", textposition='inside', textfont=dict(color='white', weight='bold')
         ))
-        # Segment 2: Sisa Target (Abu-abu)
         fig_macro_bar.add_trace(go.Bar(
             y=['DIPA'], x=[sisa_dipa], name='Sisa Target',
             orientation='h', marker_color='#e2e8f0'
@@ -223,7 +225,6 @@ with row_metrics[5]:
         )
         st.plotly_chart(fig_macro_bar, use_container_width=True)
         
-        # Teks Keterangan Target dan Realisasi di bawah Grafik Batang Horisontal Makro
         st.markdown(f"""
         <div style='font-size: 11px; color: #475569; line-height: 1.4; margin-top: -2px; padding-left: 5px;'>
             <div>Target Pagu: <b>Rp {format_lokal(total_target, False)}</b></div>
@@ -236,13 +237,12 @@ with row_metrics[5]:
 st.markdown("<hr>", unsafe_allow_html=True)
 
 
-# ------------------------------------------
-# LAYOUT UTAMA: KIRI (PROFIL PEJABAT BEBAS BOCOR) vs KANAN (2 GRAFIK BESAR Pertanahan)
-# ------------------------------------------
+# ==========================================
+# LAYOUT UTAMA: KIRI (PROFIL) vs KANAN (GRAFIK BESAR)
+# ==========================================
 col_left, col_right = st.columns([4, 8])
 
 with col_left:
-    # --- SUB-ROW FOTO URL 2 DAN URL 1 ---
     col_url2, col_url1 = st.columns(2)
     
     with col_url2:
@@ -259,7 +259,6 @@ with col_left:
         
     st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural</p>", unsafe_allow_html=True)
     
-    # --- FORMULASI FUNGSI KARTU PROFIL PEJABAT (ANTI-LEAK / BEBAS ERROR) ---
     def render_dashboard_profile(jabatan_keyword):
         row = df_peg_filtered[df_peg_filtered['jabatan'].str.contains(jabatan_keyword, case=False, na=False)]
         if not row.empty:
@@ -269,10 +268,8 @@ with col_left:
             pct = (realisasi / target * 100) if target > 0 else 0
             img_url = row['url'] if pd.notna(row['url']) and str(row['url']).startswith("http") else "https://via.placeholder.com/150"
             
-            # Bar Progress Kustom
             progress_bar_container = f'<div style="background-color:#e2e8f0; border-radius:4px; height:10px; width:100%; margin:6px 0 4px 0; overflow:hidden;"><div style="background-color:#2ecc71; width:{min(pct, 100.0)}%; height:100%; border-radius:4px;"></div></div>'
             
-            # Menggabungkan komponen data murni ke struktur satu string tunggal lurus untuk menghilangkan potensi crash parsing
             html_content = (
                 '<div class="profile-box">'
                     '<div style="display:flex; align-items:flex-start;">'
@@ -296,7 +293,6 @@ with col_left:
         render_dashboard_profile(java)
 
 with col_right:
-    # Penentuan poros sumbu absis grafik pertanahan besar di sebelah kanan
     if selected_kab == "Sulawesi Tengah":
         df_chart = df_wilayah.groupby('kabupaten_kota').sum().reset_index()
         x_axis_column = 'kabupaten_kota'
@@ -307,7 +303,7 @@ with col_right:
         df_chart = df_wil_filtered.groupby('desa_kelurahan').sum().reset_index()
         x_axis_column = 'desa_kelurahan'
 
-    # --- GRAFIK UTAMA 1 BESAR ---
+    # GRAFIK PERSIL
     st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil per-Wilayah")
     if not df_chart.empty:
         fig_batang1 = go.Figure()
@@ -315,19 +311,17 @@ with col_right:
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_su'], name='Jumlah SU', marker_color='#3b82f6'))
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_suvalid'], name='SU Valid', marker_color='#10b981'))
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_suel'], name='Pra SUEL', marker_color='#f59e0b'))
-        
         fig_batang1.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=430)
         st.plotly_chart(fig_batang1, use_container_width=True)
 
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
-    # --- GRAFIK UTAMA 2 BESAR ---
+    # GRAFIK BUKU TANAH
     st.markdown("### 📖 Grafik Validasi Buku Tanah per-Wilayah")
     if not df_chart.empty:
         fig_batang2 = go.Figure()
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_bt'], name='Jumlah BT', marker_color='#6d28d9'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['bt_valid'], name='BT Valid', marker_color='#059669'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_btel'], name='Pra BTEL', marker_color='#d97706'))
-        
         fig_batang2.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=430)
         st.plotly_chart(fig_batang2, use_container_width=True)
