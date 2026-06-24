@@ -13,7 +13,7 @@ st.markdown("""
         border: 1px solid #e2e8f0;
         border-radius: 8px;
         padding: 12px;
-        margin-bottom: 12px;
+        margin-bottom: 4px;
         background-color: #ffffff;
         box-shadow: 0 1px 3px rgba(0,0,0,0.05);
     }
@@ -86,15 +86,17 @@ for col in ['kabupaten_kota', 'nama', 'jabatan', 'kategori_asn']:
     if col in df_pegawai.columns:
         df_pegawai[col] = df_pegawai[col].astype(str).str.strip()
 
-# Konversi tipe data numerik
+# Konversi tipe data numerik dan bersihkan karakter non-numerik (seperti titik/koma pemisah ribuan dari string)
 num_cols_wil = ['luas_adm', 'luas_apl', 'jumlah_persil', 'jumlah_kw456', 'jumlah_bt', 'bt_valid', 'pra_btel', 'jumlah_su', 'jumlah_suvalid', 'pra_suel']
 for col in num_cols_wil:
     if col in df_wilayah.columns:
-        df_wilayah[col] = pd.to_numeric(df_wilayah[col], errors='coerce').fillna(0)
+        df_wilayah[col] = pd.to_numeric(df_wilayah[col].astype(str).str.replace('.', '').str.replace(',', ''), errors='coerce').fillna(0)
 
 num_cols_peg = ['target_dipa', 'realisasi_dipa']
 for col in num_cols_peg:
     if col in df_pegawai.columns:
+        # Menangani pembersihan jika data angka di spreadsheet dibaca sebagai string berformat rupiah
+        df_pegawai[col] = df_pegawai[col].astype(str).str.replace('Rp', '').str.replace('.', '').str.replace(',', '').str.replace(' ', '')
         df_pegawai[col] = pd.to_numeric(df_pegawai[col], errors='coerce').fillna(0)
 
 
@@ -117,7 +119,7 @@ selected_kec = st.sidebar.selectbox("Kecamatan", list_kec)
 # ==========================================
 # PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
 # ==========================================
-# Penyiapan filter pegawai berdasarkan kabupaten_kota
+# Perbaikan Utama: Menggunakan .str.contains() agar "Palu" bisa COCOK dengan "Kantor Pertanahan Kota Palu"
 df_peg_filtered = df_pegawai.copy()
 if selected_kab != "Sulawesi Tengah":
     df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
@@ -146,21 +148,18 @@ st.markdown("<br>", unsafe_allow_html=True)
 row_metrics = st.columns([2, 2, 2, 2, 2, 2.5])
 
 with row_metrics[0]:
-    # Card Jumlah SDM
     jumlah_sdm = df_peg_filtered['nama'].nunique()
     breakdown_asn = df_peg_filtered.groupby('kategori_asn')['nama'].count().to_dict()
     sub_asn_text = ", ".join([f"{k}: {v}" for k, v in breakdown_asn.items()]) if breakdown_asn else "PNS: 0, PPNPN: 0"
     st.markdown(f'<div class="custom-card"><div class="card-title">👥 Jumlah SDM</div><div class="card-value">{jumlah_sdm}</div><div class="card-subtext">{sub_asn_text}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[1]:
-    # Card Luas APL
     tot_apl = df_wil_filtered['luas_apl'].sum()
     tot_adm = df_wil_filtered['luas_adm'].sum()
     pct_apl = (tot_apl / tot_adm * 100) if tot_adm > 0 else 0
     st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL</div><div class="card-value">{tot_apl:,.1f} Ha</div><div class="card-subtext">{pct_apl:.2f}% dari Luas ADM</div></div>', unsafe_allow_html=True)
 
 with row_metrics[2]:
-    # Card Kecamatan
     if selected_kab == "Sulawesi Tengah":
         val_kec = df_wilayah['kabupaten_kota'].nunique()
         lbl_kec = "Total Kabupaten/Kota"
@@ -170,7 +169,6 @@ with row_metrics[2]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{val_kec}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[3]:
-    # Card Desa
     if selected_kab == "Sulawesi Tengah":
         val_desa = df_wilayah['kabupaten_kota'].nunique()
         sub_desa_text = "Seluruh Kabupaten/Kota"
@@ -180,7 +178,6 @@ with row_metrics[3]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🏡 Desa / Kelurahan</div><div class="card-value">{val_desa}</div><div class="card-subtext">{sub_desa_text}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[4]:
-    # Card KW456
     if selected_kab == "Sulawesi Tengah":
         val_kw = df_wilayah['kabupaten_kota'].nunique()
         lbl_kw = "Kabupaten/Kota Terdata"
@@ -190,7 +187,6 @@ with row_metrics[4]:
     st.markdown(f'<div class="custom-card"><div class="card-title">📂 Jumlah KW456</div><div class="card-value">{val_kw}</div><div class="card-subtext">{lbl_kw}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[5]:
-    # Grafik Pie Makro Realisasi DIPA Satker/Kanwil
     total_target = df_peg_filtered['target_dipa'].sum()
     total_realisasi = df_peg_filtered['realisasi_dipa'].sum()
     sisa_dipa = max(0, total_target - total_realisasi)
@@ -211,7 +207,7 @@ with row_metrics[5]:
         )
         st.plotly_chart(fig_pie, use_container_width=True)
     else:
-        st.caption("Data DIPA Kosong")
+        st.caption("Data DIPA Wilayah Kosong")
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
@@ -239,8 +235,9 @@ with col_left:
         
     st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural</p>", unsafe_allow_html=True)
     
-    # --- FUNGSI MENCETAK PROFIL STRUKTURAL + MINI GRAPH DI BAWAH URL ---
+    # --- FUNGSI MENCETAK PROFIL STRUKTURAL ---
     def render_dashboard_profile(jabatan_keyword):
+        # Menggunakan regex atau substring agar pencarian jabatan fleksibel
         row = df_peg_filtered[df_peg_filtered['jabatan'].str.contains(jabatan_keyword, case=False, na=False)]
         if not row.empty:
             row = row.iloc[0]
@@ -269,16 +266,16 @@ with col_left:
             st.progress(min(float(pct/100), 1.0))
             st.markdown(f"<p style='font-size:11px; margin-top:-8px; margin-bottom:12px; color:#475569; text-align:right;'>Realisasi: <b>{pct:.2f}%</b> (Rp {realisasi:,.0f})</p>", unsafe_allow_html=True)
         else:
-            st.caption(f"⚠️ Jabatan memuat keyword '{jabatan_keyword}' tidak ditemukan.")
+            st.caption(f"⚠️ Jabatan '{jabatan_keyword}' tidak ditemukan di wilayah ini.")
 
-    # 6 Urutan Struktural dari Atas ke Bawah
+    # 6 Urutan Struktural (Menggunakan potongan kata kunci kunci yang aman dari variasi pengetikan)
     order_struktural = [
         "Tata Usaha",
         "Survei dan Pemetaan",
-        "Penetapan Hak dan Pendaftaran",
-        "Penataan dan Pemberdayaan",
-        "Pengadaan Tanah dan Pengembangan",
-        "Pengendalian dan Penanganan Sengketa"
+        "Penetapan Hak",
+        "Penataan",
+        "Pengadaan Tanah",
+        "Sengketa"
     ]
     
     for jabatan in order_struktural:
