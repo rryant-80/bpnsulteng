@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 # 1. Konfigurasi Halaman Streamlit ke Wide Mode
 st.set_page_config(layout="wide", page_title="Dashboard Keagrariaan BPN", page_icon="🏢")
 
-# Custom CSS untuk layout profil pejabat dan kartu metrik
+# Custom CSS untuk layout kotak profil pejabat dan kartu metrik
 st.markdown("""
 <style>
     .profile-box {
@@ -30,7 +30,7 @@ st.markdown("""
     .profile-target {
         font-size: 11px;
         color: #059669;
-        margin-bottom: 8px;
+        margin-bottom: 4px;
     }
     .custom-card {
         background-color: #f8fafc;
@@ -86,7 +86,7 @@ except Exception as e:
     st.error(f"Gagal memuat data dari Google Sheets: {e}")
     st.stop()
 
-# Pembersihan whitespace pada data teks
+# Pembersihan data teks
 for col in ['kabupaten_kota', 'kecamatan', 'desa_kelurahan']:
     if col in df_wilayah.columns:
         df_wilayah[col] = df_wilayah[col].astype(str).str.strip()
@@ -112,7 +112,7 @@ for col in num_cols_peg:
 
 
 # ==========================================
-# 3. SIDEBAR (HANYA MENU FILTER)
+# 3. SIDEBAR (HANYA BERISI MENU FILTER)
 # ==========================================
 st.sidebar.title("Filter Wilayah")
 
@@ -128,7 +128,7 @@ selected_kec = st.sidebar.selectbox("Kecamatan", list_kec)
 
 
 # ==========================================
-# PRE-PROCESSING DATA FILTER
+# PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
 # ==========================================
 df_peg_filtered = df_pegawai.copy()
 if selected_kab != "Sulawesi Tengah":
@@ -144,14 +144,16 @@ if selected_kab != "Sulawesi Tengah":
 
 
 # ==========================================
-# 4. MAIN CONTENT
+# 4. MAIN CONTENT MAIN LAYOUT
 # ==========================================
 st.title(f"🏢 Dashboard Kinerja & Agraria — {selected_kab}")
 if selected_kec != "Semua Kecamatan":
     st.subheader(f"Kecamatan: {selected_kec}")
 st.markdown("<br>", unsafe_allow_html=True)
 
-# METRICS CARDS & PIE CHART
+# ------------------------------------------
+# BARIS ATAS: METRICS & BAR CHART HORISONTAL DIPA MAKRO
+# ------------------------------------------
 row_metrics = st.columns([1.8, 1.8, 1.8, 1.8, 1.8, 3.2])
 
 with row_metrics[0]:
@@ -194,41 +196,53 @@ with row_metrics[4]:
     st.markdown(f'<div class="custom-card"><div class="card-title">📂 Jumlah KW456</div><div class="card-value">{format_lokal(val_kw, False)}</div><div class="card-subtext">{lbl_kw}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[5]:
-    # --- PIE CHART (REVISI PERPUTARAN JAM 00.00 & SEARAH JARUM JAM) ---
+    # --- REVISI: GRAFIK BAR HORISONTAL MAKRO SUB-TOTAL DIPA ---
     total_target = df_peg_filtered['target_dipa'].sum()
     total_realisasi = df_peg_filtered['realisasi_dipa'].sum()
     sisa_dipa = max(0, total_target - total_realisasi)
+    pct_macro = (total_realisasi / total_target * 100) if total_target > 0 else 0
     
     if total_target > 0:
-        fig_pie = go.Figure(data=[go.Pie(
-            labels=['Realisasi DIPA', 'Sisa Target'],
-            values=[total_realisasi, sisa_dipa],
-            hole=.35,
-            textinfo='percent+value',
-            marker=dict(colors=['#2ecc71', '#f1c40f']),
-            sort=False,             # Mencegah pengurutan otomatis agar urutan label dipertahankan
-            rotation=90,            # Memulai titik potong tepat dari atas (Jam 00.00)
-            direction='clockwise'   # Bergerak memutar searah jarum jam
-        )])
-        fig_pie.update_layout(
-            margin=dict(t=5, b=5, l=5, r=5), 
-            height=150, 
-            showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.5, xanchor="center", x=0.5)
+        fig_macro_bar = go.Figure()
+        # Segment 1: Realisasi (Hijau)
+        fig_macro_bar.add_trace(go.Bar(
+            y=['DIPA'], x=[total_realisasi], name='Realisasi DIPA',
+            orientation='h', marker_color='#2ecc71',
+            text=f"{format_lokal(pct_macro, True)}%", textposition='inside', textfont=dict(color='white', weight='bold')
+        ))
+        # Segment 2: Sisa Target (Abu-abu)
+        fig_macro_bar.add_trace(go.Bar(
+            y=['DIPA'], x=[sisa_dipa], name='Sisa Target',
+            orientation='h', marker_color='#e2e8f0'
+        ))
+        fig_macro_bar.update_layout(
+            barmode='stack', height=65, showlegend=False,
+            margin=dict(t=0, b=0, l=5, r=5),
+            xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+            yaxis=dict(showgrid=False, showticklabels=False, zeroline=False)
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_macro_bar, use_container_width=True)
+        
+        # Teks Keterangan Target dan Realisasi di bawah Grafik Batang Horisontal Makro
+        st.markdown(f"""
+        <div style='font-size: 11px; color: #475569; line-height: 1.4; margin-top: -2px; padding-left: 5px;'>
+            <div>Target Pagu: <b>Rp {format_lokal(total_target, False)}</b></div>
+            <div>Realisasi DIPA: <span style='color:#27ae60; font-weight:bold;'>Rp {format_lokal(total_realisasi, False)}</span></div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
         st.caption("Data DIPA Wilayah Kosong")
 
 st.markdown("<hr>", unsafe_allow_html=True)
 
 
-# ==========================================
-# LAYOUT UTAMA: KIRI (PROFIL) vs KANAN (GRAFIK BESAR)
-# ==========================================
+# ------------------------------------------
+# LAYOUT UTAMA: KIRI (PROFIL PEJABAT BEBAS BOCOR) vs KANAN (2 GRAFIK BESAR Pertanahan)
+# ------------------------------------------
 col_left, col_right = st.columns([4, 8])
 
 with col_left:
+    # --- SUB-ROW FOTO URL 2 DAN URL 1 ---
     col_url2, col_url1 = st.columns(2)
     
     with col_url2:
@@ -245,7 +259,7 @@ with col_left:
         
     st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural</p>", unsafe_allow_html=True)
     
-    # --- PERBAIKAN UTAMA: RESTUKTURISASI INPUT KODE KELUARAN UNTUK MENCEGAH KEBOCORAN TAGS ---
+    # --- FORMULASI FUNGSI KARTU PROFIL PEJABAT (ANTI-LEAK / BEBAS ERROR) ---
     def render_dashboard_profile(jabatan_keyword):
         row = df_peg_filtered[df_peg_filtered['jabatan'].str.contains(jabatan_keyword, case=False, na=False)]
         if not row.empty:
@@ -255,32 +269,25 @@ with col_left:
             pct = (realisasi / target * 100) if target > 0 else 0
             img_url = row['url'] if pd.notna(row['url']) and str(row['url']).startswith("http") else "https://via.placeholder.com/150"
             
-            # Progress bar kustom murni menggunakan inline CSS div container yang solid
-            progress_bar_container = f"""
-            <div style="background-color: #e2e8f0; border-radius: 4px; height: 10px; width: 100%; margin: 8px 0 4px 0; overflow: hidden;">
-                <div style="background-color: #3b82f6; width: {min(pct, 100.0)}%; height: 100%; border-radius: 4px;"></div>
-            </div>
-            """
+            # Bar Progress Kustom
+            progress_bar_container = f'<div style="background-color:#e2e8f0; border-radius:4px; height:10px; width:100%; margin:6px 0 4px 0; overflow:hidden;"><div style="background-color:#2ecc71; width:{min(pct, 100.0)}%; height:100%; border-radius:4px;"></div></div>'
             
-            # Merender seluruh informasi komponen murni di dalam satu lingkup string markdown tunggal
-            st.markdown(f"""
-            <div class="profile-box">
-                <div style="display: flex; align-items: flex-start;">
-                    <div style="width: 25%;">
-                        <img src="{img_url}" style="width: 100%; border-radius: 6px; border: 1px solid #e2e8f0; display: block;">
-                    </div>
-                    <div style="width: 75%; padding-left: 14px;">
-                        <div class="profile-name">{row['nama']}</div>
-                        <div class="profile-title">{row['jabatan']}</div>
-                        <div class="profile-target">Target: Pagu Rp {format_lokal(target, False)}</div>
-                        {progress_bar_container}
-                        <div style="font-size: 11px; color: #475569; text-align: right; font-weight: 500;">
-                            Realisasi: <span style="color: #2563eb; font-weight: 700;">{format_lokal(pct, True)}%</span> (Rp {format_lokal(realisasi, False)})
-                        </div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            # Menggabungkan komponen data murni ke struktur satu string tunggal lurus untuk menghilangkan potensi crash parsing
+            html_content = (
+                '<div class="profile-box">'
+                    '<div style="display:flex; align-items:flex-start;">'
+                        f'<div style="width:25%;"><img src="{img_url}" style="width:100%; border-radius:6px; border:1px solid #e2e8f0; display:block;"></div>'
+                        f'<div style="width:75%; padding-left:14px;">'
+                            f'<div class="profile-name">{row["nama"]}</div>'
+                            f'<div class="profile-title">{row["jabatan"]}</div>'
+                            f'<div class="profile-target">Target: Rp {format_lokal(target, False)}</div>'
+                            f'{progress_bar_container}'
+                            f'<div style="font-size:11px; color:#475569; text-align:right; font-weight:500;">Realisasi: <span style="color:#2ecc71; font-weight:700;">{format_lokal(pct, True)}%</span> (Rp {format_lokal(realisasi, False)})</div>'
+                        '</div>'
+                    '</div>'
+                '</div>'
+            )
+            st.markdown(html_content, unsafe_allow_html=True)
         else:
             st.caption(f"⚠️ Jabatan '{jabatan_keyword}' tidak ditemukan di wilayah ini.")
 
@@ -289,6 +296,7 @@ with col_left:
         render_dashboard_profile(java)
 
 with col_right:
+    # Penentuan poros sumbu absis grafik pertanahan besar di sebelah kanan
     if selected_kab == "Sulawesi Tengah":
         df_chart = df_wilayah.groupby('kabupaten_kota').sum().reset_index()
         x_axis_column = 'kabupaten_kota'
@@ -299,7 +307,7 @@ with col_right:
         df_chart = df_wil_filtered.groupby('desa_kelurahan').sum().reset_index()
         x_axis_column = 'desa_kelurahan'
 
-    # GRAFIK PERSIL
+    # --- GRAFIK UTAMA 1 BESAR ---
     st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil per-Wilayah")
     if not df_chart.empty:
         fig_batang1 = go.Figure()
@@ -307,17 +315,19 @@ with col_right:
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_su'], name='Jumlah SU', marker_color='#3b82f6'))
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_suvalid'], name='SU Valid', marker_color='#10b981'))
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_suel'], name='Pra SUEL', marker_color='#f59e0b'))
+        
         fig_batang1.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=430)
         st.plotly_chart(fig_batang1, use_container_width=True)
 
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
-    # GRAFIK BUKU TANAH
+    # --- GRAFIK UTAMA 2 BESAR ---
     st.markdown("### 📖 Grafik Validasi Buku Tanah per-Wilayah")
     if not df_chart.empty:
         fig_batang2 = go.Figure()
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_bt'], name='Jumlah BT', marker_color='#6d28d9'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['bt_valid'], name='BT Valid', marker_color='#059669'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_btel'], name='Pra BTEL', marker_color='#d97706'))
+        
         fig_batang2.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=430)
         st.plotly_chart(fig_batang2, use_container_width=True)
