@@ -185,12 +185,15 @@ if not df_pegawai.empty:
     try:
         fig_sidebar = go.Figure()
         
-        # PERBAIKAN POPUP HOVER: Menyiapkan customdata untuk menampilkan teks nominal Rupiah saat di-hover
-        # Kita buat list teks nominal rupiah yang sudah diformat untuk masing-masing baris kabupaten/kota
+        # Menyiapkan customdata: list nama lengkap wilayah dan list nominal rupiah yang sudah diformat
+        hover_nama_lengkap = list(df_side_calc['kabupaten_kota'])
         hover_text_rupiah = [f"Rp {format_lokal(val, False)}" for val in df_side_calc['realisasi_dipa']]
         
+        # Menggabungkan kedua list ke dalam numpy array/list berpasangan agar bisa diakses di hovertemplate
+        custom_hover_data = list(zip(hover_nama_lengkap, hover_text_rupiah))
+        
         fig_sidebar.add_trace(go.Bar(
-            x=df_side_calc['wilayah_singkat'],
+            x=df_side_calc['wilayah_singkat'],  # Sumbu X tetap menampilkan singkatan agar muat di sidebar
             y=df_side_calc['persen_realisasi'],
             marker_color='#2ecc71',
             # Menampilkan label ringkas di atas batang grafik (2 digit belakang koma + %)
@@ -198,18 +201,18 @@ if not df_pegawai.empty:
             textposition='outside',
             textfont=dict(size=8, weight='bold'),
             
-            # Menyisipkan data teks rupiah ke dalam customdata agar bisa dipanggil oleh hovertemplate
-            customdata=hover_text_rupiah,
+            # Menyisipkan data kustom berpasangan
+            customdata=custom_hover_data,
             
             # KUSTOMISASI TEMPLATE HOVER (POPUP):
-            # %{x} = Nama Wilayah Singkat
-            # %{y:.2f}% = Nilai persentase dipaksa 2 digit desimal (menggunakan standar lokal dengan format_lokal atau format plotly)
-            # %{customdata} = Nilai Total Realisasi Rupiah yang diambil dari list kustom kita
+            # %{customdata[0]} = Mengambil Nama Lengkap Kabupaten/Kota (bukan singkatan sumbu X)
+            # %{y:.2f}% = Nilai persentase dipaksa 2 digit desimal
+            # %{customdata[1]} = Nilai Total Realisasi Rupiah
             hovertemplate=(
-                "<b>Wilayah:</b> %{x}<br>"
+                "<b>Wilayah:</b> %{customdata[0]}<br>"
                 "<b>Persen Realisasi:</b> %{y:.2f}%<br>"
-                "<b>Total Realisasi:</b> %{customdata}"
-                "<extra></extra>" # <extra></extra> berfungsi untuk menghilangkan label trace default kotak sebelah kanan
+                "<b>Total Realisasi:</b> %{customdata[1]}"
+                "<extra></extra>"
             )
         ))
         
@@ -225,15 +228,15 @@ if not df_pegawai.empty:
             yaxis=dict(
                 title=None,
                 tickfont=dict(size=9), 
-                maxallowed=100,
-                range=[0, 100]
+                maxallowed=60,
+                range=[0, 60]
             ),
             showlegend=False
         )
         st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
         
     except Exception as e:
-        # Jika ada kendala versi library lingkungan server, fallback native tetap aman
+        # Fallback aman jika terjadi kendala versi library lingkungan server
         st.sidebar.caption("Alternatif Kinerja:")
         st.sidebar.bar_chart(
             df_side_calc, 
