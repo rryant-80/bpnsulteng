@@ -243,7 +243,6 @@ if not df_pegawai.empty:
             height=220,
             use_container_width=True
         )
-        )
 else:
     st.sidebar.caption("Data anggaran tidak tersedia.")
 
