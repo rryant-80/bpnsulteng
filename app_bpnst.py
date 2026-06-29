@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # 1. Konfigurasi Halaman Streamlit ke Wide Mode
-st.set_page_config(layout="wide", page_title="Dashboard BPN Sulteng", page_icon="🏢")
+st.set_page_config(layout="wide", page_title="Dashboard Keagrariaan BPN", page_icon="🏢")
 
 # Custom CSS untuk layout kotak profil pejabat dan kartu metrik
 st.markdown("""
@@ -66,6 +66,33 @@ def format_lokal(nilai, pakai_desimal=True):
     else:
         return f"{int(nilai):,}".replace(",", ".")
 
+# Dictionary Pemetaan Singkatan Wilayah untuk Sumbu X Grafik Sidebar
+MAP_SINGKATAN = {
+    "banggai": "BG",
+    "banggai kepulauan": "BK",
+    "banggai laut": "BL",
+    "buol": "BU",
+    "donggala": "DG",
+    "morowali": "MW",
+    "morowali utara": "MU",
+    "palu": "PL",
+    "parigi moutong": "PM",
+    "poso": "PS",
+    "sigi": "SG",
+    "tojo una-una": "TU",
+    "kanwil sulawesi tengah": "ST",
+    "tolitoli": "TL"
+}
+
+def singgkat_nama_wilayah(nama):
+    nama_clean = str(nama).strip().lower()
+    # Cari kecocokan parsial atau utuh dari nama wilayah
+    for kunci, singkatan in MAP_SINGKATAN.items():
+        if kunci in nama_clean:
+            return singkatan
+    # Jika tidak ada di daftar penugasan teks, kembalikan teks asli berkapital awal kata
+    return str(nama).title()
+
 # 2. Memuat Data dari Google Sheets via Secrets
 @st.cache_data(ttl=600)
 def load_data(sheet_id, gid):
@@ -94,29 +121,25 @@ for col in ['kabupaten_kota', 'nama', 'jabatan', 'kategori_asn']:
     if col in df_pegawai.columns:
         df_pegawai[col] = df_pegawai[col].astype(str).str.strip()
 
-# =========================================================================
-# PERBAIKAN TOTAL KONVERSI ANGKA: Mencegah Kebocoran String .0 Akhir akibat Float
-# =========================================================================
+# KONVERSI DATA NUMERIK GID WILAYAH
 num_cols_wil = [
     'luas_adm', 'luas_apl', 'jumlah_persil', 'luas_persil', 'luas_persil_valid', 
     'jumlah_kw456', 'luas_kw456', 'jumlah_bt', 'bt_valid', 'luas_persil_deliniasi', 
     'pra_sertel', 'pra_btel', 'jumlah_su', 'jumlah_suvalid', 'pra_suel'
 ]
-
 for col in num_cols_wil:
     if col in df_wilayah.columns:
         if df_wilayah[col].dtype == 'object':
-            df_wilayah[col] = df_wilayah[col].astype(str).str.replace('.', '', regex=False)
+            df_wilayah[col] = df_wilayah[col].astype(str).str.replace('.', '', regex=False).str.replace(',', '', regex=False)
         elif df_wilayah[col].dtype == 'float64':
             df_wilayah[col] = df_wilayah[col].fillna(0)
-            
         df_wilayah[col] = pd.to_numeric(df_wilayah[col], errors='coerce').fillna(0)
 
 # KONVERSI SATUAN LUAS: m2 ke Hektar (Ha)
 df_wilayah['luas_adm'] = df_wilayah['luas_adm'] / 10000
 df_wilayah['luas_apl'] = df_wilayah['luas_apl'] / 10000
 
-# Pembersihan data DIPA Pegawai
+# KONVERSI DATA NUMERIK GID PEGAWAI (DIPA)
 num_cols_peg = ['target_dipa', 'realisasi_dipa']
 for col in num_cols_peg:
     if col in df_pegawai.columns:
@@ -126,9 +149,9 @@ for col in num_cols_peg:
 
 
 # ==========================================
-# 3. SIDEBAR (HANYA BERISI MENU FILTER)
+# 3. SIDEBAR (FILTER & GRAFIK INDEPENDEN MAKRO)
 # ==========================================
-st.sidebar.title("FILTER WILAYAH")
+st.sidebar.title("Filter Wilayah")
 
 list_kab = ["Sulawesi Tengah"] + sorted(list(df_wilayah['kabupaten_kota'].dropna().unique())) if not df_wilayah.empty else ["Sulawesi Tengah"]
 selected_kab = st.sidebar.selectbox("Kabupaten / Kota", list_kab)
@@ -140,9 +163,49 @@ else:
 
 selected_kec = st.sidebar.selectbox("Kecamatan", list_kec)
 
+st.sidebar.markdown("---")
+
+# --- GRAFIK INDEPENDEN SIDEBAR (% REALISASI ANGGARAN PER KABUPATEN_KOTA KANWIL) ---
+st.sidebar.subheader(" Kinerja Pagu Se-Sulteng")
+
+if not df_pegawai.empty:
+    # Agregasi data menggunakan DataFrame utama (df_pegawai) asli tanpa terkena filter apa pun
+    df_side_calc = df_pegawai.groupby('kabupaten_kota')[['target_dipa', 'realisasi_dipa']].sum().reset_index()
+    
+    # Hitung persentase realisasi makro wilayah
+    df_side_calc['persen_realisasi'] = (df_side_calc['realisasi_dipa'] / df_side_calc['target_dipa'] * 100).fillna(0)
+    
+    # Terapkan fungsi pemetaan singkatan sumbu X (Banggai -> BG, dll.)
+    df_side_calc['wilayah_singkat'] = df_side_calc['kabupaten_kota'].apply(singgkat_nama_wilayah)
+    
+    # Urutkan alfabetis berdasarkan nama singkatan agar rapi
+    df_side_calc = df_side_calc.sort_values(by='wilayah_singkat')
+    
+    # Membangun Grafik Batang Vertikal Menggunakan Plotly Graph Objects
+    fig_sidebar = go.Figure()
+    fig_sidebar.add_trace(go.Bar(
+        x=df_side_calc['wilayah_singkat'],
+        y=df_side_calc['persen_realisasi'],
+        marker_color='#2ecc71',
+        text=df_side_calc['persen_realisasi'].round(1).astype(str) + '%',
+        textposition='outside',
+        textfont=dict(size=8, weight='bold')
+    ))
+    
+    fig_sidebar.update_layout(
+        margin=dict(t=15, b=15, l=5, r=5),
+        height=240,
+        xaxis=dict(tickfont=dict(size=9, weight='bold'), type='category'),
+        yaxis=dict(title="% Realisasi", titlefont=dict(size=10), tickfont=dict(size=9), range=[0, max(df_side_calc['persen_realisasi'].max() + 15, 100)]),
+        showlegend=False
+    )
+    st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
+else:
+    st.sidebar.caption("Data DIPA Pegawai tidak tersedia.")
+
 
 # ==========================================
-# PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
+# DATA PROCESSING UNTUK ARTIFAK UTAMA (DASHBOARD)
 # ==========================================
 df_peg_filtered = df_pegawai.copy()
 if selected_kab != "Sulawesi Tengah":
@@ -160,14 +223,12 @@ if selected_kab != "Sulawesi Tengah":
 # ==========================================
 # 4. MAIN CONTENT MAIN LAYOUT
 # ==========================================
-st.title(f"🏢 Dashboard Kinerja BPN — {selected_kab}")
+st.title(f"🏢 Dashboard Kinerja & Agraria — {selected_kab}")
 if selected_kec != "Semua Kecamatan":
     st.subheader(f"Kecamatan: {selected_kec}")
 st.markdown("<br>", unsafe_allow_html=True)
 
-# ------------------------------------------
-# BARIS ATAS: METRICS & BAR CHART HORISONTAL DIPA MAKRO
-# ------------------------------------------
+# BARIS ATAS: METRICS & BAR CHART HORISONTAL DIPA MAKRO WIDGET
 row_metrics = st.columns([1.8, 1.8, 1.8, 1.8, 1.8, 3.2])
 
 with row_metrics[0]:
@@ -180,7 +241,7 @@ with row_metrics[1]:
     tot_apl = df_wil_filtered['luas_apl'].sum()
     tot_adm = df_wil_filtered['luas_adm'].sum()
     pct_apl = (tot_apl / tot_adm * 100) if tot_adm > 0 else 0
-    st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL (Ha)</div><div class="card-value">{format_lokal(tot_apl, True)}</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL</div><div class="card-value">{format_lokal(tot_apl, True)} Ha</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
 
 with row_metrics[2]:
     if selected_kab == "Sulawesi Tengah":
@@ -236,8 +297,8 @@ with row_metrics[5]:
         
         st.markdown(f"""
         <div style='font-size: 11px; color: #475569; line-height: 1.4; margin-top: -2px; padding-left: 5px;'>
-            <div>TARGET PAGU: <b>Rp {format_lokal(total_target, False)}</b></div>
-            <div>REALISASI: <span style='color:#27ae60; font-weight:bold;'>Rp {format_lokal(total_realisasi, False)}</span></div>
+            <div>Target Pagu: <b>Rp {format_lokal(total_target, False)}</b></div>
+            <div>Realisasi DIPA: <span style='color:#27ae60; font-weight:bold;'>Rp {format_lokal(total_realisasi, False)}</span></div>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -247,7 +308,7 @@ st.markdown("<hr>", unsafe_allow_html=True)
 
 
 # ==========================================
-# LAYOUT UTAMA: KIRI (PROFIL) vs KANAN (GRAFIK BESAR)
+# LAYOUT UTAMA: KIRI (PROFIL PEJABAT) vs KANAN (GRAFIK BESAR)
 # ==========================================
 col_left, col_right = st.columns([4, 8])
 
@@ -257,14 +318,16 @@ with col_left:
     with col_url2:
         df_bendahara = df_peg_filtered[df_peg_filtered['jabatan'].str.contains("Bendahara", case=False, na=False)]
         img_bendahara = df_bendahara.iloc[0]['url'] if not df_bendahara.empty and pd.notna(df_bendahara.iloc[0]['url']) else "https://via.placeholder.com/150"
+        st.markdown("<p style='text-align:center; font-weight:600; margin-bottom:2px; font-size:12px;'>URL 2 (Bendahara)</p>", unsafe_allow_html=True)
         st.image(img_bendahara, use_container_width=True)
         
     with col_url1:
         df_kakan = df_peg_filtered[df_peg_filtered['jabatan'].str.contains("Kepala Kantor|Kakan|Kakanwil", case=False, na=False)]
         img_kakan = df_kakan.iloc[0]['url'] if not df_kakan.empty and pd.notna(df_kakan.iloc[0]['url']) else "https://via.placeholder.com/150"
+        st.markdown("<p style='text-align:center; font-weight:600; margin-bottom:2px; font-size:12px;'>URL 1 (Kepala Kantor)</p>", unsafe_allow_html=True)
         st.image(img_kakan, use_container_width=True)
         
-    st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural & Kinerja</p>", unsafe_allow_html=True)
+    st.markdown("<br><p style='font-weight:bold; font-size:15px; border-bottom:2px solid #cbd5e1; padding-bottom:4px;'>Profil Pejabat Struktural</p>", unsafe_allow_html=True)
     
     def render_dashboard_profile(jabatan_keyword):
         row = df_peg_filtered[df_peg_filtered['jabatan'].str.contains(jabatan_keyword, case=False, na=False)]
@@ -310,8 +373,8 @@ with col_right:
         df_chart = df_wil_filtered.groupby('desa_kelurahan').sum().reset_index()
         x_axis_column = 'desa_kelurahan'
 
-    # GRAFIK PERSIL (350-430px)
-    st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil")
+    # GRAFIK PERSIL
+    st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil per-Wilayah")
     if not df_chart.empty:
         fig_batang1 = go.Figure()
         fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_persil'], name='Jumlah Persil', marker_color='#1d4ed8'))
@@ -323,23 +386,13 @@ with col_right:
 
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
-    # --- GRAFIK BUKU TANAH (REVISI: MENJADI 4 BATANG BERHIMPITAN) ---
-    st.markdown("### 📖 Grafik Validasi Buku Tanah & Prasertel")
+    # GRAFIK BUKU TANAH (4 BATANG BERHIMPITAN)
+    st.markdown("### 📖 Grafik Validasi Buku Tanah per-Wilayah")
     if not df_chart.empty:
         fig_batang2 = go.Figure()
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_bt'], name='Jumlah BT', marker_color='#6d28d9'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['bt_valid'], name='BT Valid', marker_color='#059669'))
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_btel'], name='Pra BTEL', marker_color='#d97706'))
-        # Penambahan Trace Baru ke-4: pra_sertel (Warna Merah Bata / Coral)
         fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_sertel'], name='Pra SERTEL', marker_color='#e74c3c'))
-        
-        fig_batang2.update_layout(
-            barmode='group', 
-            xaxis_title="Daftar Wilayah", 
-            yaxis_title="Volume", 
-            legend_orientation="h", 
-            legend=dict(x=0, y=1.12), 
-            margin=dict(t=40, b=30), 
-            height=430
-        )
+        fig_batang2.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=430)
         st.plotly_chart(fig_batang2, use_container_width=True)
