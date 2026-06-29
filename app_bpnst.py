@@ -149,7 +149,6 @@ for col in num_cols_peg:
             df_pegawai[col] = df_pegawai[col].astype(str).str.replace('Rp', '', regex=False).str.replace('.', '', regex=False).str.replace(' ', '', regex=False)
         df_pegawai[col] = pd.to_numeric(df_pegawai[col], errors='coerce').fillna(0)
 
-
 # ==========================================
 # 3. SIDEBAR (FILTER & GRAFIK MAKRO INDEPENDEN)
 # ==========================================
@@ -173,9 +172,23 @@ st.sidebar.subheader("📊 % Realisasi Anggaran Se-Sulteng")
 if not df_pegawai.empty:
     # Agregasi data global independen dari poros data asli pegawai
     df_side_calc = df_pegawai.groupby('kabupaten_kota')[['target_dipa', 'realisasi_dipa']].sum().reset_index()
+    
+    # Hitung persentase realisasi makro wilayah
     df_side_calc['persen_realisasi'] = (df_side_calc['realisasi_dipa'] / df_side_calc['target_dipa'] * 100).fillna(0)
+    
+    # Terapkan fungsi pemetaan singkatan sumbu X (Banggai -> BG, dll.)
     df_side_calc['wilayah_singkat'] = df_side_calc['kabupaten_kota'].apply(singgkat_nama_wilayah)
+    
+    # Urutkan alfabetis berdasarkan nama singkatan agar rapi
     df_side_calc = df_side_calc.sort_values(by='wilayah_singkat')
+    
+    # PERBAIKAN VALIDASI RANGE: Mengantisipasi nilai NaN atau kosong agar tidak crash
+    max_val = df_side_calc['persen_realisasi'].max()
+    # Jika max_val adalah NaN atau tidak terdefinisi, paksa ke nilai 100
+    if pd.isna(max_val) or max_val == 0:
+        y_max_range = 100
+    else:
+        y_max_range = max(float(max_val) + 15, 100)
     
     fig_sidebar = go.Figure()
     fig_sidebar.add_trace(go.Bar(
@@ -188,16 +201,19 @@ if not df_pegawai.empty:
     ))
     
     fig_sidebar.update_layout(
-        margin=dict(t=15, b=15, l=5, r=5),
+        margin=dict(t=25, b=15, l=5, r=5),  # t ditambah sedikit agar teks persentase batang atas tidak terpotong
         height=240,
         xaxis=dict(tickfont=dict(size=9, weight='bold'), type='category'),
-        yaxis=dict(titlefont=dict(size=10), tickfont=dict(size=9), range=[0, max(df_side_calc['persen_realisasi'].max() + 15, 100)]),
+        yaxis=dict(
+            titlefont=dict(size=10), 
+            tickfont=dict(size=9), 
+            range=[0, y_max_range]  # Menggunakan variabel pelindung yang sudah divalidasi aman
+        ),
         showlegend=False
     )
     st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
 else:
     st.sidebar.caption("Data anggaran tidak tersedia.")
-
 
 # ==========================================
 # PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
