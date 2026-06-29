@@ -176,42 +176,48 @@ if not df_pegawai.empty:
     # Hitung persentase realisasi makro wilayah
     df_side_calc['persen_realisasi'] = (df_side_calc['realisasi_dipa'] / df_side_calc['target_dipa'] * 100).fillna(0)
     
-    # Terapkan fungsi pemetaan singkatan sumbu X (Banggai -> BG, dll.)
+    # Terapkan fungsi pemetaan singkatan sumbu X
     df_side_calc['wilayah_singkat'] = df_side_calc['kabupaten_kota'].apply(singgkat_nama_wilayah)
     
     # Urutkan alfabetis berdasarkan nama singkatan agar rapi
     df_side_calc = df_side_calc.sort_values(by='wilayah_singkat')
     
-    # PERBAIKAN VALIDASI RANGE: Mengantisipasi nilai NaN atau kosong agar tidak crash
+    # PERBAIKAN TOTAL: Memaksa konversi tipe data ke float standar Python untuk mencegah pembatasan range di Plotly
     max_val = df_side_calc['persen_realisasi'].max()
-    # Jika max_val adalah NaN atau tidak terdefinisi, paksa ke nilai 100
     if pd.isna(max_val) or max_val == 0:
-        y_max_range = 100
+        y_max_range = 100.0
     else:
-        y_max_range = max(float(max_val) + 15, 100)
+        # Membungkus dengan float() untuk menjamin tipe data murni Python primitif, bukan numpy.float64
+        y_max_range = float(max(float(max_val) + 15.0, 100.0))
     
-    fig_sidebar = go.Figure()
-    fig_sidebar.add_trace(go.Bar(
-        x=df_side_calc['wilayah_singkat'],
-        y=df_side_calc['persen_realisasi'],
-        marker_color='#2ecc71',
-        text=df_side_calc['persen_realisasi'].round(1).astype(str) + '%',
-        textposition='outside',
-        textfont=dict(size=8, weight='bold')
-    ))
-    
-    fig_sidebar.update_layout(
-        margin=dict(t=25, b=15, l=5, r=5),  # t ditambah sedikit agar teks persentase batang atas tidak terpotong
-        height=240,
-        xaxis=dict(tickfont=dict(size=9, weight='bold'), type='category'),
-        yaxis=dict(
-            titlefont=dict(size=10), 
-            tickfont=dict(size=9), 
-            range=[0, y_max_range]  # Menggunakan variabel pelindung yang sudah divalidasi aman
-        ),
-        showlegend=False
-    )
-    st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
+    # Blok Pengaman Tambahan (Try-Except) untuk mencegah error runtime mematikan aplikasi
+    try:
+        fig_sidebar = go.Figure()
+        fig_sidebar.add_trace(go.Bar(
+            x=df_side_calc['wilayah_singkat'],
+            y=df_side_calc['persen_realisasi'],
+            marker_color='#2ecc71',
+            text=df_side_calc['persen_realisasi'].round(1).astype(str) + '%',
+            textposition='outside',
+            textfont=dict(size=8, weight='bold')
+        ))
+        
+        fig_sidebar.update_layout(
+            margin=dict(t=25, b=15, l=5, r=5),
+            height=240,
+            xaxis=dict(tickfont=dict(size=9, weight='bold'), type='category'),
+            yaxis=dict(
+                titlefont=dict(size=10), 
+                tickfont=dict(size=9), 
+                range=[0.0, y_max_range]  # Memakai range bertipe data float standar [0.0, float]
+            ),
+            showlegend=False
+        )
+        st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
+    except Exception as e:
+        # Jika Plotly masih menolak karena sensitivitas versi library environment, gunakan alternatif visualisasi bawaan streamlit yang anti-crash
+        st.sidebar.caption("Alternatif Grafik Kinerja:")
+        st.sidebar.bar_chart(df_side_calc, x='wilayah_singkat', y='persen_realisasi', color='#2ecc71', height=200)
 else:
     st.sidebar.caption("Data anggaran tidak tersedia.")
 
