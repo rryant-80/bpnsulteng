@@ -207,8 +207,8 @@ if not df_pegawai.empty:
             yaxis=dict(
                 title=None,
                 tickfont=dict(size=9), 
-                maxallowed=100,
-                range=[0, 100]
+                maxallowed=60,
+                range=[0, 60]
             ),
             showlegend=False
         )
