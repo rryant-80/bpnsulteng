@@ -179,18 +179,9 @@ if not df_pegawai.empty:
     # Terapkan fungsi pemetaan singkatan sumbu X
     df_side_calc['wilayah_singkat'] = df_side_calc['kabupaten_kota'].apply(singgkat_nama_wilayah)
     
-    # Urutkan alfabetis berdasarkan nama singkatan agar rapi
-    df_side_calc = df_side_calc.sort_values(by='wilayah_singkat')
+    # REVISI: Urutkan grafik berdasarkan % realisasi tertinggi ke terendah
+    df_side_calc = df_side_calc.sort_values(by='persen_realisasi', ascending=False)
     
-    # PERBAIKAN TOTAL: Memaksa konversi tipe data ke float standar Python untuk mencegah pembatasan range di Plotly
-    max_val = df_side_calc['persen_realisasi'].max()
-    if pd.isna(max_val) or max_val == 0:
-        y_max_range = 100.0
-    else:
-        # Membungkus dengan float() untuk menjamin tipe data murni Python primitif, bukan numpy.float64
-        y_max_range = float(max(float(max_val) + 15.0, 100.0))
-    
-    # Blok Pengaman Tambahan (Try-Except) untuk mencegah error runtime mematikan aplikasi
     try:
         fig_sidebar = go.Figure()
         fig_sidebar.add_trace(go.Bar(
@@ -204,20 +195,35 @@ if not df_pegawai.empty:
         
         fig_sidebar.update_layout(
             margin=dict(t=25, b=15, l=5, r=5),
-            height=240,
-            xaxis=dict(tickfont=dict(size=9, weight='bold'), type='category'),
+            height=260,
+            # Menghilangkan judul teks "wilayah_singkat" pada sumbu X dan memaksa seluruh label keluar
+            xaxis=dict(
+                title=None,
+                tickfont=dict(size=9, weight='bold'), 
+                type='category',
+                dtick=1
+            ),
+            # REVISI: Menghilangkan judul "persen_realisasi" & mengunci nilai vertikal maksimal di 100 secara aman
             yaxis=dict(
-                titlefont=dict(size=10), 
+                title=None,
                 tickfont=dict(size=9), 
-                range=[0.0, y_max_range]  # Memakai range bertipe data float standar [0.0, float]
+                maxallowed=100,
+                range=[0, 100]
             ),
             showlegend=False
         )
         st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
     except Exception as e:
-        # Jika Plotly masih menolak karena sensitivitas versi library environment, gunakan alternatif visualisasi bawaan streamlit yang anti-crash
-        st.sidebar.caption("Alternatif Grafik Kinerja:")
-        st.sidebar.bar_chart(df_side_calc, x='wilayah_singkat', y='persen_realisasi', color='#2ecc71', height=200)
+        # Jika ada kendala versi library, tampilkan via native dengan konfigurasi pembersihan teks sumbu
+        st.sidebar.caption("Alternatif Kinerja:")
+        st.sidebar.bar_chart(
+            df_side_calc, 
+            x='wilayah_singkat', 
+            y='persen_realisasi', 
+            color='#2ecc71', 
+            height=220,
+            use_container_width=True
+        )
 else:
     st.sidebar.caption("Data anggaran tidak tersedia.")
 
