@@ -184,37 +184,56 @@ if not df_pegawai.empty:
     
     try:
         fig_sidebar = go.Figure()
+        
+        # PERBAIKAN POPUP HOVER: Menyiapkan customdata untuk menampilkan teks nominal Rupiah saat di-hover
+        # Kita buat list teks nominal rupiah yang sudah diformat untuk masing-masing baris kabupaten/kota
+        hover_text_rupiah = [f"Rp {format_lokal(val, False)}" for val in df_side_calc['realisasi_dipa']]
+        
         fig_sidebar.add_trace(go.Bar(
             x=df_side_calc['wilayah_singkat'],
             y=df_side_calc['persen_realisasi'],
             marker_color='#2ecc71',
-            text=df_side_calc['persen_realisasi'].round(1).astype(str) + '%',
+            # Menampilkan label ringkas di atas batang grafik (2 digit belakang koma + %)
+            text=df_side_calc['persen_realisasi'].apply(lambda x: f"{format_lokal(x, True)}%"),
             textposition='outside',
-            textfont=dict(size=8, weight='bold')
+            textfont=dict(size=8, weight='bold'),
+            
+            # Menyisipkan data teks rupiah ke dalam customdata agar bisa dipanggil oleh hovertemplate
+            customdata=hover_text_rupiah,
+            
+            # KUSTOMISASI TEMPLATE HOVER (POPUP):
+            # %{x} = Nama Wilayah Singkat
+            # %{y:.2f}% = Nilai persentase dipaksa 2 digit desimal (menggunakan standar lokal dengan format_lokal atau format plotly)
+            # %{customdata} = Nilai Total Realisasi Rupiah yang diambil dari list kustom kita
+            hovertemplate=(
+                "<b>Wilayah:</b> %{x}<br>"
+                "<b>Persen Realisasi:</b> %{y:.2f}%<br>"
+                "<b>Total Realisasi:</b> %{customdata}"
+                "<extra></extra>" # <extra></extra> berfungsi untuk menghilangkan label trace default kotak sebelah kanan
+            )
         ))
         
         fig_sidebar.update_layout(
             margin=dict(t=25, b=15, l=5, r=5),
             height=260,
-            # Menghilangkan judul teks "wilayah_singkat" pada sumbu X dan memaksa seluruh label keluar
             xaxis=dict(
                 title=None,
                 tickfont=dict(size=9, weight='bold'), 
                 type='category',
                 dtick=1
             ),
-            # REVISI: Menghilangkan judul "persen_realisasi" & mengunci nilai vertikal maksimal di 100 secara aman
             yaxis=dict(
                 title=None,
                 tickfont=dict(size=9), 
-                maxallowed=60,
-                range=[0, 60]
+                maxallowed=100,
+                range=[0, 100]
             ),
             showlegend=False
         )
         st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
+        
     except Exception as e:
-        # Jika ada kendala versi library, tampilkan via native dengan konfigurasi pembersihan teks sumbu
+        # Jika ada kendala versi library lingkungan server, fallback native tetap aman
         st.sidebar.caption("Alternatif Kinerja:")
         st.sidebar.bar_chart(
             df_side_calc, 
@@ -223,6 +242,7 @@ if not df_pegawai.empty:
             color='#2ecc71', 
             height=220,
             use_container_width=True
+        )
         )
 else:
     st.sidebar.caption("Data anggaran tidak tersedia.")
