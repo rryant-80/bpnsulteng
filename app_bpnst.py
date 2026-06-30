@@ -408,11 +408,21 @@ with col_right:
     st.markdown("### 📂 Grafik Volume Berkas Prosedur")
     
     if not df_pros_filtered.empty:
-        # 1. Agregasi data prosedur berdasarkan kolom nama_prosedur
-        df_pros_chart = df_pros_filtered.groupby('nama_prosedur').agg(
-            jumlah_berkas=('nmr_berkas', 'count'),
-            total_biaya=('biaya', 'sum')
-        ).reset_index()
+        # LOGIKA DINAMIS: Penentuan poros sumbu X berdasarkan filter yang aktif
+        if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
+            # Jika cakupan provinsi/makro, kelompokkan per Kabupaten/Kota
+            df_pros_chart = df_pros_filtered.groupby('kabupaten_kota').agg(
+                jumlah_berkas=('nmr_berkas', 'count'),
+                total_biaya=('biaya', 'sum')
+            ).reset_index()
+            x_axis_prosedur = 'kabupaten_kota'
+        else:
+            # Jika cakupan kabupaten spesifik, kelompokkan per Nama Prosedur
+            df_pros_chart = df_pros_filtered.groupby('nama_prosedur').agg(
+                jumlah_berkas=('nmr_berkas', 'count'),
+                total_biaya=('biaya', 'sum')
+            ).reset_index()
+            x_axis_prosedur = 'nama_prosedur'
         
         # Urutkan berdasarkan volume berkas tertinggi
         df_pros_chart = df_pros_chart.sort_values(by='jumlah_berkas', ascending=False)
@@ -423,29 +433,29 @@ with col_right:
         # Membuat objek grafik baru yang segar
         fig_prosedur = go.Figure()
         
-        # 2. Menambahkan trace grafik batang tunggal murni
+        # Menambahkan trace grafik batang tunggal murni
         fig_prosedur.add_trace(go.Bar(
-            x=df_pros_chart['nama_prosedur'],
+            x=df_pros_chart[x_axis_prosedur], # Menggunakan sumbu X dinamis hasil seleksi logika
             y=df_pros_chart['jumlah_berkas'],
             name='Volume Berkas',
             marker_color='#2c3e50',
             customdata=hover_biaya_rupiah,
             hovertemplate=(
-                "<b>Prosedur:</b> %{x}<br>"
+                "<b>Nama Bagian:</b> %{x}<br>"
                 "<b>Jumlah Berkas:</b> %{y} berkas<br>"
                 "<b>Total Biaya:</b> %{customdata}"
                 "<extra></extra>"
             )
         ))
         
-        # 3. Pengaturan tata letak linear paling aman tanpa nested parameter sensitif
+        # Pengaturan tata letak linear paling aman tanpa nested parameter sensitif
         fig_prosedur.update_layout(
             height=430, 
             showlegend=False,
             margin=dict(t=20, b=30, l=10, r=10)
         )
         
-        # 4. Mengatur konfigurasi sumbu X dan Y dengan penulisan properti modern yang didukung Python 3.14
+        # Mengatur konfigurasi sumbu X dan Y dengan penulisan properti modern
         fig_prosedur.update_xaxes(
             title=None, 
             tickfont=dict(size=10)
@@ -453,11 +463,11 @@ with col_right:
         
         fig_prosedur.update_yaxes(
             title_text="Volume Berkas (Pcs)",
-            title_font=dict(color='#2c3e50'), # Perbaikan: titlefont diubah menjadi title_font
-            tickfont=dict(color='#2c3e50')    # Perbaikan: tickfont diisi langsung dengan dict warna
+            title_font=dict(color='#2c3e50'), 
+            tickfont=dict(color='#2c3e50')    
         )
         
-        # 5. Tampilkan grafik baru yang stabil ke Streamlit
+        # Tampilkan grafik dinamis ke Streamlit
         st.plotly_chart(fig_prosedur, use_container_width=True)
         
     else:
