@@ -444,25 +444,23 @@ with col_right:
         
         # Pengaturan Layout Sumbu Ganda (Dual-Axis)
         # Pengaturan Layout Sumbu Ganda (Dual-Axis) - PERBAIKAN REVISI LEGEND
+        # Pengaturan Layout Sumbu Ganda (Dual-Axis) - Versi Bersih Bebas Crash
         fig_comb.update_layout(
-            # Parameter lama legend_orientation="h" DIHAPUS, dipindahkan ke dalam dict legend di bawah:
             legend=dict(
-                orientation="h",     # Mengatur legend menjadi horizontal
+                orientation="h",
                 yanchor="bottom",
-                y=1.12,              # Menempatkan legend di atas grafik
+                y=1.12,
                 xanchor="left",
                 x=0
             ),
             margin=dict(t=40, b=30, l=10, r=10),
             height=430,
             xaxis=dict(title="Nama Prosedur Layanan Keagrariaan", tickfont=dict(size=10)),
-            # Konfigurasi sumbu Y utama (kiri)
             yaxis=dict(
                 title="Volume Berkas Prosedur (Pcs)",
                 titlefont=dict(color='#2c3e50'),
                 tickfont=dict(color='#2c3e50')
             ),
-            # Konfigurasi sumbu Y sekunder (kanan)
             yaxis2=dict(
                 title="Total PNBP / Biaya Berkas (Rp)",
                 titlefont=dict(color='#e74c3c'),
