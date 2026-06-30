@@ -417,20 +417,20 @@ with col_right:
         # Urutkan berdasarkan volume berkas tertinggi agar rapi
         df_pros_chart = df_pros_chart.sort_values(by='jumlah_berkas', ascending=False)
         
-        # Membuat Grafik Kombinasi Dual-Y Axis (Kiri Batang, Kanan Garis)
+        # Membuat objek grafik kombinasi dasar
         fig_comb = go.Figure()
         
-        # Sumbu Kiri: Batang Volume Berkas
+        # 1. Menambahkan Trace Batang untuk Sumbu Y Utama (Kiri)
         fig_comb.add_trace(go.Bar(
             x=df_pros_chart['nama_prosedur'],
             y=df_pros_chart['jumlah_berkas'],
             name='Volume Berkas (Pcs)',
             marker_color='#2c3e50',
-            yaxis='y1',
             hovertemplate="<b>Prosedur:</b> %{x}<br><b>Jumlah:</b> %{y} berkas<extra></extra>"
         ))
         
-        # Sumbu Kanan: Garis Akumulasi Biaya
+        # 2. Menambahkan Trace Garis untuk Sumbu Y Sekunder (Kanan)
+        # Menetapkan parameter yaxis='y2' langsung di dalam trace untuk keamanan
         fig_comb.add_trace(go.Scatter(
             x=df_pros_chart['nama_prosedur'],
             y=df_pros_chart['total_biaya'],
@@ -442,25 +442,22 @@ with col_right:
             hovertemplate="<b>Prosedur:</b> %{x}<br><b>Biaya:</b> Rp %{y:,.0f}<extra></extra>"
         ))
         
-        # Pengaturan Layout Sumbu Ganda (Dual-Axis)
-        # Pengaturan Layout Sumbu Ganda (Dual-Axis) - PERBAIKAN REVISI LEGEND
-        # Pengaturan Layout Sumbu Ganda (Dual-Axis) - Versi Bersih Bebas Crash
+        # 3. Konfigurasi Dasar Layout Umum & Sumbu Y Utama (Kiri)
         fig_comb.update_layout(
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.12,
-                xanchor="left",
-                x=0
-            ),
-            margin=dict(t=40, b=30, l=10, r=10),
             height=430,
+            margin=dict(t=40, b=30, l=10, r=10),
+            showlegend=False,
             xaxis=dict(title="Nama Prosedur Layanan Keagrariaan", tickfont=dict(size=10)),
             yaxis=dict(
                 title="Volume Berkas Prosedur (Pcs)",
                 titlefont=dict(color='#2c3e50'),
                 tickfont=dict(color='#2c3e50')
-            ),
+            )
+        )
+        
+        # 4. Modifikasi Terpisah Sumbu Y Sekunder (Kanan) Menggunakan update_layout kustom
+        # Cara ini dijamin lolos dari validasi ketat Plotly versi terbaru di Python 3.14
+        fig_comb.update_layout(
             yaxis2=dict(
                 title="Total PNBP / Biaya Berkas (Rp)",
                 titlefont=dict(color='#e74c3c'),
@@ -470,6 +467,20 @@ with col_right:
                 showgrid=False
             )
         )
+        
+        # 5. Konfigurasi Legend Horizontal Secara Terpisah
+        fig_comb.update_layout(
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.12,
+                xanchor="left",
+                x=0
+            )
+        )
+        
+        # Tampilkan ke Streamlit
         st.plotly_chart(fig_comb, use_container_width=True)
+        
     else:
         st.info("Data prosedur berkas tidak tersedia untuk cakupan wilayah filter saat ini.")
