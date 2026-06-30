@@ -195,7 +195,7 @@ if not df_pegawai.empty:
         fig_sidebar.update_layout(
             margin=dict(t=25, b=15, l=5, r=5), height=260,
             xaxis=dict(title=None, tickfont=dict(size=9, weight='bold'), type='category', dtick=1),
-            yaxis=dict(title=None, tickfont=dict(size=9), maxallowed=100, range=[0, 100]),
+            yaxis=dict(title=None, tickfont=dict(size=9), maxallowed=60, range=[0, 60]),
             showlegend=False
         )
         st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
