@@ -408,31 +408,28 @@ with col_right:
     st.markdown("### 📂 Grafik Volume Berkas Prosedur")
     
     if not df_pros_filtered.empty:
-        # Agregasi data prosedur berdasarkan kolom nama_prosedur
+        # 1. Agregasi data prosedur berdasarkan kolom nama_prosedur
         df_pros_chart = df_pros_filtered.groupby('nama_prosedur').agg(
             jumlah_berkas=('nmr_berkas', 'count'),
             total_biaya=('biaya', 'sum')
         ).reset_index()
         
-        # Urutkan berdasarkan volume berkas tertinggi agar rapi dari kiri ke hereng
+        # Urutkan berdasarkan volume berkas tertinggi
         df_pros_chart = df_pros_chart.sort_values(by='jumlah_berkas', ascending=False)
         
         # Menyiapkan customdata teks rupiah biaya agar bisa dibaca di hovertemplate
         hover_biaya_rupiah = [f"Rp {format_lokal(val, False)}" for val in df_pros_chart['total_biaya']]
         
-        fig_comb = go.Figure()
+        # REVISI UTAMA: Mengubah nama variabel objek menjadi segar untuk menghapus memori cache lama
+        fig_prosedur = go.Figure()
         
-        # Menambahkan satu jenis trace grafik batang tunggal (100% Aman dari ValueError)
-        fig_comb.add_trace(go.Bar(
+        # 2. Menambahkan trace grafik batang tunggal murni yang aman
+        fig_prosedur.add_trace(go.Bar(
             x=df_pros_chart['nama_prosedur'],
             y=df_pros_chart['jumlah_berkas'],
             name='Volume Berkas',
             marker_color='#2c3e50',
-            
-            # Menyisipkan data biaya kustom
             customdata=hover_biaya_rupiah,
-            
-            # KUSTOMISASI HOVER (POPUP): Menampilkan nama, jumlah berkas, dan biaya asli daerah
             hovertemplate=(
                 "<b>Prosedur:</b> %{x}<br>"
                 "<b>Jumlah Berkas:</b> %{y} berkas<br>"
@@ -441,24 +438,16 @@ with col_right:
             )
         ))
         
-        # Pengaturan tata letak sederhana tanpa dependensi sumbu sekunder yaxis2
-        fig_comb.update_layout(
-            height=430,
-            margin=dict(t=20, b=30, l=10, r=10),
-            showlegend=False,
-            xaxis=dict(
-                title=None, 
-                tickfont=dict(size=10)
-            ),
-            yaxis=dict(
-                title="Volume Berkas (Pcs)",
-                titlefont=dict(color='#2c3e50'),
-                tickfont=dict(color='#2c3e50')
-            )
-        )
+        # 3. Pengaturan tata letak linear paling dasar (Menghindari nested parameter yang sensitif di Python 3.14)
+        fig_prosedur.update_layout(height=430, showlegend=False)
+        fig_prosedur.update_layout(margin=dict(t=20, b=30, l=10, r=10))
         
-        # Tampilkan grafik tunggal stabil ke Streamlit
-        st.plotly_chart(fig_comb, use_container_width=True)
+        # Mengatur konfigurasi sumbu X dan Y secara modular terpisah demi keamanan penuh
+        fig_prosedur.update_xaxes(title=None, tickfont=dict(size=10))
+        fig_prosedur.update_yaxes(title="Volume Berkas (Pcs)", titlefont=dict(color='#2c3e50'), tickfont=dict(color='#2c3e50'))
+        
+        # 4. Tampilkan grafik baru yang stabil ke Streamlit
+        st.plotly_chart(fig_prosedur, use_container_width=True)
         
     else:
         st.info("Data prosedur berkas tidak tersedia untuk cakupan wilayah filter saat ini.")
