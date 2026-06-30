@@ -443,9 +443,16 @@ with col_right:
         ))
         
         # Pengaturan Layout Sumbu Ganda (Dual-Axis)
+        # Pengaturan Layout Sumbu Ganda (Dual-Axis) - PERBAIKAN REVISI LEGEND
         fig_comb.update_layout(
-            legend_orientation="h",
-            legend=dict(x=0, y=1.12),
+            # Parameter lama legend_orientation="h" DIHAPUS, dipindahkan ke dalam dict legend di bawah:
+            legend=dict(
+                orientation="h",     # Mengatur legend menjadi horizontal
+                yanchor="bottom",
+                y=1.12,              # Menempatkan legend di atas grafik
+                xanchor="left",
+                x=0
+            ),
             margin=dict(t=40, b=30, l=10, r=10),
             height=430,
             xaxis=dict(title="Nama Prosedur Layanan Keagrariaan", tickfont=dict(size=10)),
