@@ -420,10 +420,10 @@ with col_right:
         # Menyiapkan customdata teks rupiah biaya agar bisa dibaca di hovertemplate
         hover_biaya_rupiah = [f"Rp {format_lokal(val, False)}" for val in df_pros_chart['total_biaya']]
         
-        # REVISI UTAMA: Mengubah nama variabel objek menjadi segar untuk menghapus memori cache lama
+        # Membuat objek grafik baru yang segar
         fig_prosedur = go.Figure()
         
-        # 2. Menambahkan trace grafik batang tunggal murni yang aman
+        # 2. Menambahkan trace grafik batang tunggal murni
         fig_prosedur.add_trace(go.Bar(
             x=df_pros_chart['nama_prosedur'],
             y=df_pros_chart['jumlah_berkas'],
@@ -438,15 +438,26 @@ with col_right:
             )
         ))
         
-        # 3. Pengaturan tata letak linear paling dasar (Menghindari nested parameter yang sensitif di Python 3.14)
-        fig_prosedur.update_layout(height=430, showlegend=False)
-        fig_prosedur.update_layout(margin=dict(t=20, b=30, l=10, r=10))
+        # 3. Pengaturan tata letak linear paling aman tanpa nested parameter sensitif
+        fig_prosedur.update_layout(
+            height=430, 
+            showlegend=False,
+            margin=dict(t=20, b=30, l=10, r=10)
+        )
         
-        # Mengatur konfigurasi sumbu X dan Y secara modular terpisah demi keamanan penuh
-        fig_prosedur.update_xaxes(title=None, tickfont=dict(size=10))
-        fig_prosedur.update_yaxes(title="Volume Berkas (Pcs)", titlefont=dict(color='#2c3e50'), tickfont=dict(color='#2c3e50'))
+        # 4. Mengatur konfigurasi sumbu X dan Y dengan penulisan properti modern yang didukung Python 3.14
+        fig_prosedur.update_xaxes(
+            title=None, 
+            tickfont=dict(size=10)
+        )
         
-        # 4. Tampilkan grafik baru yang stabil ke Streamlit
+        fig_prosedur.update_yaxes(
+            title_text="Volume Berkas (Pcs)",
+            title_font=dict(color='#2c3e50'), # Perbaikan: titlefont diubah menjadi title_font
+            tickfont=dict(color='#2c3e50')    # Perbaikan: tickfont diisi langsung dengan dict warna
+        )
+        
+        # 5. Tampilkan grafik baru yang stabil ke Streamlit
         st.plotly_chart(fig_prosedur, use_container_width=True)
         
     else:
