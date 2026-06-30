@@ -405,7 +405,7 @@ with col_right:
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
 
     # --- GRAFIK 3 BARU: GRAFIK KOMBINASI PROSEDUR & BIAYA (DIBAWAH BUKU TANAH) ---
-    st.markdown("### 📂 Grafik Volume Berkas Prosedur & Akumulasi Biaya")
+    st.markdown("### 📂 Grafik Volume Berkas Prosedur")
     
     if not df_pros_filtered.empty:
         # Agregasi data prosedur berdasarkan kolom nama_prosedur
@@ -414,72 +414,50 @@ with col_right:
             total_biaya=('biaya', 'sum')
         ).reset_index()
         
-        # Urutkan berdasarkan volume berkas tertinggi agar rapi
+        # Urutkan berdasarkan volume berkas tertinggi agar rapi dari kiri ke hereng
         df_pros_chart = df_pros_chart.sort_values(by='jumlah_berkas', ascending=False)
         
-        # Membuat objek grafik kombinasi dasar
+        # Menyiapkan customdata teks rupiah biaya agar bisa dibaca di hovertemplate
+        hover_biaya_rupiah = [f"Rp {format_lokal(val, False)}" for val in df_pros_chart['total_biaya']]
+        
         fig_comb = go.Figure()
         
-        # 1. Menambahkan Trace Batang untuk Sumbu Y Utama (Kiri)
+        # Menambahkan satu jenis trace grafik batang tunggal (100% Aman dari ValueError)
         fig_comb.add_trace(go.Bar(
             x=df_pros_chart['nama_prosedur'],
             y=df_pros_chart['jumlah_berkas'],
-            name='Volume Berkas (Pcs)',
+            name='Volume Berkas',
             marker_color='#2c3e50',
-            hovertemplate="<b>Prosedur:</b> %{x}<br><b>Jumlah:</b> %{y} berkas<extra></extra>"
+            
+            # Menyisipkan data biaya kustom
+            customdata=hover_biaya_rupiah,
+            
+            # KUSTOMISASI HOVER (POPUP): Menampilkan nama, jumlah berkas, dan biaya asli daerah
+            hovertemplate=(
+                "<b>Prosedur:</b> %{x}<br>"
+                "<b>Jumlah Berkas:</b> %{y} berkas<br>"
+                "<b>Total Biaya:</b> %{customdata}"
+                "<extra></extra>"
+            )
         ))
         
-        # 2. Menambahkan Trace Garis untuk Sumbu Y Sekunder (Kanan)
-        # Menetapkan parameter yaxis='y2' langsung di dalam trace untuk keamanan
-        fig_comb.add_trace(go.Scatter(
-            x=df_pros_chart['nama_prosedur'],
-            y=df_pros_chart['total_biaya'],
-            name='Total Biaya (Rp)',
-            mode='lines+markers',
-            line=dict(color='#e74c3c', width=3),
-            marker=dict(size=8),
-            yaxis='y2',
-            hovertemplate="<b>Prosedur:</b> %{x}<br><b>Biaya:</b> Rp %{y:,.0f}<extra></extra>"
-        ))
-        
-        # 3. Konfigurasi Dasar Layout Umum & Sumbu Y Utama (Kiri)
+        # Pengaturan tata letak sederhana tanpa dependensi sumbu sekunder yaxis2
         fig_comb.update_layout(
             height=430,
-            margin=dict(t=40, b=30, l=10, r=10),
+            margin=dict(t=20, b=30, l=10, r=10),
             showlegend=False,
-            xaxis=dict(title="Nama Prosedur Layanan Keagrariaan", tickfont=dict(size=10)),
+            xaxis=dict(
+                title=None, 
+                tickfont=dict(size=10)
+            ),
             yaxis=dict(
-                title="Volume Berkas Prosedur (Pcs)",
+                title="Volume Berkas (Pcs)",
                 titlefont=dict(color='#2c3e50'),
                 tickfont=dict(color='#2c3e50')
             )
         )
         
-        # 4. Modifikasi Terpisah Sumbu Y Sekunder (Kanan) Menggunakan update_layout kustom
-        # Cara ini dijamin lolos dari validasi ketat Plotly versi terbaru di Python 3.14
-        fig_comb.update_layout(
-            yaxis2=dict(
-                title="Total PNBP / Biaya Berkas (Rp)",
-                titlefont=dict(color='#e74c3c'),
-                tickfont=dict(color='#e74c3c'),
-                overlaying='y',
-                side='right',
-                showgrid=False
-            )
-        )
-        
-        # 5. Konfigurasi Legend Horizontal Secara Terpisah
-        fig_comb.update_layout(
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.12,
-                xanchor="left",
-                x=0
-            )
-        )
-        
-        # Tampilkan ke Streamlit
+        # Tampilkan grafik tunggal stabil ke Streamlit
         st.plotly_chart(fig_comb, use_container_width=True)
         
     else:
