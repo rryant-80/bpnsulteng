@@ -204,65 +204,6 @@ if not df_pegawai.empty:
 
 st.sidebar.markdown("---")
 
-# --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR (PINDAH KE SIDEBAR) ---
-st.sidebar.subheader("📂 Volume Berkas Prosedur")
-
-# Filter data GID Prosedur secara lokal untuk kebutuhan grafik di sidebar
-df_pros_side = df_prosedur.copy()
-if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
-    df_pros_side = df_pros_side[df_pros_side['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
-
-if not df_pros_side.empty:
-    # LOGIKA DINAMIS: Penentuan poros sumbu X dan Grouping berdasarkan filter aktif
-    if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
-        df_pros_calc = df_pros_side.groupby('kabupaten_kota').agg(
-            jumlah_berkas=('nmr_berkas', 'count'),
-            total_biaya=('biaya', 'sum')
-        ).reset_index()
-        x_axis_side = 'kabupaten_kota'
-    else:
-        # REVISI: Jika kabupaten aktif, grouping dan sumbu X menggunakan 'posisi_berkas'
-        df_pros_calc = df_pros_side.groupby('posisi_berkas').agg(
-            jumlah_berkas=('nmr_berkas', 'count'),
-            total_biaya=('biaya', 'sum')
-        ).reset_index()
-        x_axis_side = 'posisi_berkas'
-    
-    # Urutkan dari jumlah berkas terbanyak ke terendah
-    df_pros_calc = df_pros_calc.sort_values(by='jumlah_berkas', ascending=False)
-    
-    # Siapkan data kustom untuk hover rupiah biaya
-    hover_biaya_side = [f"Rp {format_lokal(val, False)}" for val in df_pros_calc['total_biaya']]
-    
-    try:
-        fig_pros_sidebar = go.Figure()
-        fig_pros_sidebar.add_trace(go.Bar(
-            x=df_pros_calc[x_axis_side],
-            y=df_pros_calc['jumlah_berkas'],
-            marker_color='#2c3e50',
-            text=df_pros_calc['jumlah_berkas'].astype(str),
-            textposition='outside',
-            textfont=dict(size=8, weight='bold'),
-            customdata=hover_biaya_side,
-            hovertemplate=(
-                "<b>Posisi/Nama:</b> %{x}<br>"
-                "<b>Jumlah Berkas:</b> %{y} berkas<br>"
-                "<b>Total Biaya:</b> %{customdata}"
-                "<extra></extra>"
-            )
-        ))
-        
-        fig_pros_sidebar.update_layout(
-            margin=dict(t=25, b=25, l=5, r=5), height=260,
-            showlegend=False,
-            xaxis=dict(title=None, tickfont=dict(size=8, weight='bold'), type='category', dtick=1),
-            yaxis=dict(title=None, tickfont=dict(size=9))
-        )
-        st.sidebar.plotly_chart(fig_pros_sidebar, use_container_width=True)
-    except Exception as e:
-        st.sidebar.bar_chart(df_pros_calc, x=x_axis_side, y='jumlah_berkas', color='#2c3e50', height=220, use_container_width=True)
-else:
-    st.sidebar.caption("Data prosedur tidak tersedia.")
 # ==========================================
 # PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
 # ==========================================
