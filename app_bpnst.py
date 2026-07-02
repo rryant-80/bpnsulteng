@@ -169,7 +169,7 @@ selected_kec = st.sidebar.selectbox("Kecamatan", list_kec)
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 1: TINGKAT REALISASI GLOBAL ---
-st.sidebar.subheader("📊 % Realisasi Anggaran Se-Sulteng")
+st.sidebar.subheader("📊 % Realisasi Anggaran Satker")
 if not df_pegawai.empty:
     df_side_calc = df_pegawai.groupby('kabupaten_kota')[['target_dipa', 'realisasi_dipa']].sum().reset_index()
     df_side_calc['persen_realisasi'] = (df_side_calc['realisasi_dipa'] / df_side_calc['target_dipa'] * 100).fillna(0)
@@ -205,7 +205,7 @@ if not df_pegawai.empty:
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR (PINDAH KE SIDEBAR) ---
-st.sidebar.subheader("📂 Volume Berkas Prosedur")
+st.sidebar.subheader("📂 PPDM 2015-2025")
 
 # Filter data GID Prosedur secara lokal untuk kebutuhan grafik di sidebar
 df_pros_side = df_prosedur.copy()
