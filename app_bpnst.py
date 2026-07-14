@@ -168,7 +168,7 @@ selected_kec = st.sidebar.selectbox("Kecamatan", list_kec)
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 1: TINGKAT REALISASI GLOBAL ---
-st.sidebar.subheader("📊 % Realisasi Anggaran Se-Sulteng")
+st.sidebar.subheader("📊 % Realisasi Anggaran Sulteng")
 if not df_pegawai.empty:
     df_side_calc = df_pegawai.groupby('kabupaten_kota')[['target_dipa', 'realisasi_dipa']].sum().reset_index()
     df_side_calc['persen_realisasi'] = (df_side_calc['realisasi_dipa'] / df_side_calc['target_dipa'] * 100).fillna(0)
@@ -194,7 +194,7 @@ if not df_pegawai.empty:
         fig_sidebar.update_layout(
             margin=dict(t=25, b=15, l=5, r=5), height=240,
             xaxis=dict(title=None, tickfont=dict(size=9, weight='bold'), type='category', dtick=1),
-            yaxis=dict(title=None, tickfont=dict(size=9), maxallowed=100, range=[0, 100]),
+            yaxis=dict(title=None, tickfont=dict(size=9), maxallowed=60, range=[0, 100]),
             showlegend=False
         )
         st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
@@ -205,7 +205,7 @@ if not df_pegawai.empty:
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR ---
-st.sidebar.subheader("📂 PPDM Berkas Prosedur")
+st.sidebar.subheader("📂 PPDM 2015-2026")
 status_toggle = st.sidebar.toggle("Tampilkan Tahun 2026 Saja", value=False)
 
 df_pros_side = df_prosedur.copy()
@@ -213,11 +213,9 @@ df_pros_side = df_prosedur.copy()
 if 'thn_berkas' in df_pros_side.columns:
     df_pros_side['thn_berkas'] = pd.to_numeric(df_pros_side['thn_berkas'], errors='coerce').fillna(0)
     if status_toggle:
-        df_pros_side = df_pros_side[df_pros_side['thn_berkas'] == 2026]
-        st.sidebar.caption("📅 *Mode Aktif: Menampilkan Berkas Tahun 2026 saja*")
+        df_pros_side = df_pros_side[df_pros_side['thn_berkas'] == 2026]        
     else:
-        df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= 2025)]
-        st.sidebar.caption("📅 *Mode Standar: Menampilkan Berkas Tahun 2015 - 2025*")
+        df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= 2025)]        
 
 if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
     df_pros_side = df_pros_side[df_pros_side['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
@@ -274,8 +272,10 @@ else:
 
 st.sidebar.markdown("---")
 
+st.sidebar.markdown("---")
+
 # --- GRAFIK SIDEBAR 3: GRAFIK MALAH INDEPENDEN % KW456 ---
-st.sidebar.subheader("📉 % KW456 Seluruh Kabupaten/Kota")
+st.sidebar.subheader("📉 % KW456 Sulteng")
 if not df_wilayah.empty:
     # Agregasi data dasar murni tanpa terpengaruh filter apa pun
     df_kw_calc = df_wilayah.groupby('kabupaten_kota').agg(
@@ -286,7 +286,9 @@ if not df_wilayah.empty:
     
     df_kw_calc['persen_kw'] = (df_kw_calc['total_kw'] / df_kw_calc['total_bt'] * 100).fillna(0)
     df_kw_calc['wilayah_singkat'] = df_kw_calc['kabupaten_kota'].apply(singgkat_nama_wilayah)
-    df_kw_calc = df_kw_calc.sort_values(by='persen_kw', ascending=False)
+    
+    # PERBAIKAN: Mengubah urutan dimulai dari persentase terendah ke tertinggi
+    df_kw_calc = df_kw_calc.sort_values(by='persen_kw', ascending=True)
     
     try:
         fig_kw_side = go.Figure()
@@ -322,11 +324,10 @@ if not df_wilayah.empty:
     except Exception as e:
         st.sidebar.bar_chart(df_kw_calc, x='wilayah_singkat', y='persen_kw', color='#2980b9', height=220, use_container_width=True)
 
-
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 4: GRAFIK MAKRO INDEPENDEN % PRASERTEL ---
-st.sidebar.subheader("📉 % Prasertel Seluruh Kabupaten/Kota")
+st.sidebar.subheader("📉 % Prasertel Sulteng")
 if not df_wilayah.empty:
     df_pt_calc = df_wilayah.groupby('kabupaten_kota').agg(
         total_sertel=('pra_sertel', 'sum'),
