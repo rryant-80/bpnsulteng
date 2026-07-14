@@ -374,25 +374,24 @@ if not df_wilayah.empty:
         st.sidebar.bar_chart(df_pt_calc, x='wilayah_singkat', y='persen_sertel', color='#e67e22', height=220, use_container_width=True)
 
 # ==========================================
-# PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
+# PRE-PROCESSING DATA FILTER SEBELUM LAYOUT (PERBAIKAN LOGIKA TOTAL)
 # ==========================================
 df_peg_filtered = df_pegawai.copy()
-if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
-    df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
-else:
-    # Mengambil tingkat provinsi/Kanwil jika Sulawesi Tengah atau Semua Kabupaten/Kota dipilih
-    df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains("Kanwil|Provinsi|Sulteng", case=False, na=False)]
-
 df_wil_filtered = df_wilayah.copy()
+df_pros_filtered = df_prosedur.copy()
+
 if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
+    # Jika memilih salah satu kabupaten spesifik
+    df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
     df_wil_filtered = df_wil_filtered[df_wil_filtered['kabupaten_kota'] == selected_kab]
+    df_pros_filtered = df_pros_filtered[df_pros_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
+    
     if selected_kec != "Semua Kecamatan":
         df_wil_filtered = df_wil_filtered[df_wil_filtered['kecamatan'] == selected_kec]
-
-# Filter untuk data GID Prosedur baru
-df_pros_filtered = df_prosedur.copy()
-if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
-    df_pros_filtered = df_pros_filtered[df_pros_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
+else:
+    # PERBAIKAN: Jika "Semua Kabupaten/Kota" atau "Sulawesi Tengah", JANGAN difilter ke Kanwil saja.
+    # Biarkan df_peg_filtered, df_wil_filtered, dan df_pros_filtered memuat SELURUH baris data database.
+    pass
 
 
 # ==========================================
@@ -404,11 +403,12 @@ if selected_kec != "Semua Kecamatan":
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ------------------------------------------
-# BARIS ATAS: METRICS & BAR CHART HORISONTAL DIPA MAKRO
+# BARIS ATAS: METRICS & BAR CHART HORISONTAL DIPA MAKRO (AKURAT DATABASE)
 # ------------------------------------------
 row_metrics = st.columns([1.8, 1.8, 1.8, 1.8, 1.8, 3.2])
 
 with row_metrics[0]:
+    # Menghitung total unik SDM dari data yang sudah difilter
     jumlah_sdm = df_peg_filtered['nama'].nunique()
     breakdown_asn = df_peg_filtered.groupby('kategori_asn')['nama'].count().to_dict()
     sub_asn_text = ", ".join([f"{k}: {v}" for k, v in breakdown_asn.items()]) if breakdown_asn else "PNS: 0, PPNPN: 0"
@@ -421,44 +421,43 @@ with row_metrics[1]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL (Ha)</div><div class="card-value">{format_lokal(tot_apl, True)}</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
 
 with row_metrics[2]:
-    if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
-        val_kec = df_wilayah['kecamatan'].nunique()
-        lbl_kec = "Total Kecamatan Se-Sulteng"
-    else:
-        val_kec = df_wil_filtered['kecamatan'].nunique()
-        lbl_kec = f"Kecamatan di {selected_kab}"
+    val_kec = df_wil_filtered['kecamatan'].nunique()
+    lbl_kec = "Total Kecamatan Se-Sulteng" if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"] else f"Kecamatan di {selected_kab}"
     st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{format_lokal(val_kec, False)}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[3]:
-    if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
-        val_desa = df_wilayah['desa_kelurahan'].nunique()
-        sub_desa_text = "Total Desa/Kel Se-Sulteng"
-    else:
-        val_desa = df_wil_filtered['desa_kelurahan'].nunique()
-        sub_desa_text = "Total Desa & Kelurahan"
+    val_desa = df_wil_filtered['desa_kelurahan'].nunique()
+    sub_desa_text = "Total Desa/Kel Se-Sulteng" if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"] else "Total Desa & Kelurahan"
     st.markdown(f'<div class="custom-card"><div class="card-title">🏡 Desa / Kelurahan</div><div class="card-value">{format_lokal(val_desa, False)}</div><div class="card-subtext">{sub_desa_text}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[4]:
-    if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
-        val_kw = int(df_wilayah['jumlah_kw456'].sum())
-        lbl_kw = "Total KW456 Se-Sulteng"
-    else:
-        val_kw = int(df_wil_filtered['jumlah_kw456'].sum())
-        lbl_kw = f"Total KW456 di {selected_kab}"
+    val_kw = int(df_wil_filtered['jumlah_kw456'].sum())
+    lbl_kw = "Total KW456 Se-Sulteng" if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"] else f"Total KW456 di {selected_kab}"
     st.markdown(f'<div class="custom-card"><div class="card-title">📂 Jumlah KW456</div><div class="card-value">{format_lokal(val_kw, False)}</div><div class="card-subtext">{lbl_kw}</div></div>', unsafe_allow_html=True)
 
 with row_metrics[5]:
     total_target = df_peg_filtered['target_dipa'].sum()
     total_realisasi = df_peg_filtered['realisasi_dipa'].sum()
     sisa_dipa = max(0, total_target - total_realisasi)
-    pct_macro = (total_realisasi / total_target * 100) if total_target > 0 else 0
     
+    # PERBAIKAN PERSENTASE REALISASI:
+    # Jika mode "Semua Kabupaten/Kota" / "Sulawesi Tengah", tampilkan Rerata Persentase Kinerja
+    if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"] and not df_pegawai.empty:
+        # Menghitung rerata persentase dari performa riil masing-masing kab_kota di database
+        df_realisasi_kab = df_pegawai.groupby('kabupaten_kota')[['target_dipa', 'realisasi_dipa']].sum().reset_index()
+        df_realisasi_kab['persen'] = (df_realisasi_kab['realisasi_dipa'] / df_realisasi_kab['target_dipa'] * 100).fillna(0)
+        pct_display = df_realisasi_kab['persen'].mean()
+    else:
+        # Jika single kabupaten terpilih, gunakan persentase langsung daerah tersebut
+        pct_display = (total_realisasi / total_target * 100) if total_target > 0 else 0
+        
     if total_target > 0:
         fig_macro_bar = go.Figure()
         fig_macro_bar.add_trace(go.Bar(
             y=['DIPA'], x=[total_realisasi], name='Realisasi DIPA',
             orientation='h', marker_color='#2ecc71',
-            text=f"{format_lokal(pct_macro, True)}%", textposition='inside', textfont=dict(color='white', weight='bold')
+            text=f"{format_lokal(pct_display, True)}%", textposition='inside', 
+            textfont=dict(color='white', weight='bold')
         ))
         fig_macro_bar.add_trace(go.Bar(
             y=['DIPA'], x=[sisa_dipa], name='Sisa Target',
