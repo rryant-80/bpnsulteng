@@ -374,32 +374,33 @@ if not df_wilayah.empty:
         st.sidebar.bar_chart(df_pt_calc, x='wilayah_singkat', y='persen_sertel', color='#e67e22', height=220, use_container_width=True)
 
 # ==========================================
-# PRE-PROCESSING DATA FILTER SEBELUM LAYOUT (LOGIKA SPESIFIK SULAWESI TENGAH)
+# PRE-PROCESSING DATA FILTER SEBELUM LAYOUT (PERBAIKAN MATRIKS WILAYAH MAKRO)
 # ==========================================
 df_peg_filtered = df_pegawai.copy()
 df_wil_filtered = df_wilayah.copy()
 df_pros_filtered = df_prosedur.copy()
 
 if selected_kab == "Semua Kabupaten/Kota":
-    # Opsi 1: Jika "Semua Kabupaten/Kota", jangan difilter agar menampilkan total seluruh isi database
+    # Menampilkan total seluruh isi database
     pass
 
 elif selected_kab == "Sulawesi Tengah":
-    # Opsi 2: Kebutuhan Baru -> Hanya mengambil baris data yang kabupaten_kota berisi kata "Sulawesi Tengah" (atau Kanwil/Provinsi)
-    # Ini akan membuat metrik SDM dan DIPA hanya menghitung entitas tingkat Provinsi saja
+    # Untuk data SDM & DIPA: Saring khusus entitas tingkat Provinsi/Kanwil
     df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains("Sulawesi Tengah|Kanwil|Provinsi", case=False, na=False)]
-    df_wil_filtered = df_wil_filtered[df_wil_filtered['kabupaten_kota'].str.contains("Sulawesi Tengah|Kanwil|Provinsi", case=False, na=False)]
     df_pros_filtered = df_pros_filtered[df_pros_filtered['kabupaten_kota'].str.contains("Sulawesi Tengah|Kanwil|Provinsi", case=False, na=False)]
+    
+    # REVISI UTAMA: Untuk metrik wilayah pertanahan, JANGAN difilter agar tidak bernilai 0.
+    # Biarkan df_wil_filtered memuat seluruh data kabupaten agar kartu metrik menampilkan total se-Sulteng.
+    pass
 
 else:
-    # Opsi 3: Jika memilih salah satu kabupaten/kota spesifik (misal: Donggala, Palu, Sigi)
+    # Jika memilih salah satu kabupaten/kota spesifik (Palu, Donggala, Sigi, dll)
     df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
     df_wil_filtered = df_wil_filtered[df_wil_filtered['kabupaten_kota'] == selected_kab]
     df_pros_filtered = df_pros_filtered[df_pros_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
     
     if selected_kec != "Semua Kecamatan":
         df_wil_filtered = df_wil_filtered[df_wil_filtered['kecamatan'] == selected_kec]
-
 
 # ==========================================
 # 4. MAIN CONTENT MAIN LAYOUT
