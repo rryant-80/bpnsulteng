@@ -168,7 +168,7 @@ selected_kec = st.sidebar.selectbox("Kecamatan", list_kec)
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 1: TINGKAT REALISASI GLOBAL ---
-st.sidebar.subheader("📊 % Realisasi Anggaran Sulteng")
+st.sidebar.subheader("📊 % Realisasi Anggaran")
 if not df_pegawai.empty:
     df_side_calc = df_pegawai.groupby('kabupaten_kota')[['target_dipa', 'realisasi_dipa']].sum().reset_index()
     df_side_calc['persen_realisasi'] = (df_side_calc['realisasi_dipa'] / df_side_calc['target_dipa'] * 100).fillna(0)
@@ -269,13 +269,10 @@ if not df_pros_side.empty:
 else:
     st.sidebar.caption("⚠️ Data berkas prosedur kosong pada filter tahun/wilayah ini.")
 
-
-st.sidebar.markdown("---")
-
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 3: GRAFIK MALAH INDEPENDEN % KW456 ---
-st.sidebar.subheader("📉 % KW456 Sulteng")
+st.sidebar.subheader("📉 % KW456 (K4)")
 if not df_wilayah.empty:
     # Agregasi data dasar murni tanpa terpengaruh filter apa pun
     df_kw_calc = df_wilayah.groupby('kabupaten_kota').agg(
@@ -327,7 +324,7 @@ if not df_wilayah.empty:
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 4: GRAFIK MAKRO INDEPENDEN % PRASERTEL ---
-st.sidebar.subheader("📉 % Prasertel Sulteng")
+st.sidebar.subheader("📉 % Prasertel")
 if not df_wilayah.empty:
     df_pt_calc = df_wilayah.groupby('kabupaten_kota').agg(
         total_sertel=('pra_sertel', 'sum'),
