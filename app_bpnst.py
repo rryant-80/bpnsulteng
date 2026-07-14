@@ -374,24 +374,31 @@ if not df_wilayah.empty:
         st.sidebar.bar_chart(df_pt_calc, x='wilayah_singkat', y='persen_sertel', color='#e67e22', height=220, use_container_width=True)
 
 # ==========================================
-# PRE-PROCESSING DATA FILTER SEBELUM LAYOUT (PERBAIKAN LOGIKA TOTAL)
+# PRE-PROCESSING DATA FILTER SEBELUM LAYOUT (LOGIKA SPESIFIK SULAWESI TENGAH)
 # ==========================================
 df_peg_filtered = df_pegawai.copy()
 df_wil_filtered = df_wilayah.copy()
 df_pros_filtered = df_prosedur.copy()
 
-if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
-    # Jika memilih salah satu kabupaten spesifik
+if selected_kab == "Semua Kabupaten/Kota":
+    # Opsi 1: Jika "Semua Kabupaten/Kota", jangan difilter agar menampilkan total seluruh isi database
+    pass
+
+elif selected_kab == "Sulawesi Tengah":
+    # Opsi 2: Kebutuhan Baru -> Hanya mengambil baris data yang kabupaten_kota berisi kata "Sulawesi Tengah" (atau Kanwil/Provinsi)
+    # Ini akan membuat metrik SDM dan DIPA hanya menghitung entitas tingkat Provinsi saja
+    df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains("Sulawesi Tengah|Kanwil|Provinsi", case=False, na=False)]
+    df_wil_filtered = df_wil_filtered[df_wil_filtered['kabupaten_kota'].str.contains("Sulawesi Tengah|Kanwil|Provinsi", case=False, na=False)]
+    df_pros_filtered = df_pros_filtered[df_pros_filtered['kabupaten_kota'].str.contains("Sulawesi Tengah|Kanwil|Provinsi", case=False, na=False)]
+
+else:
+    # Opsi 3: Jika memilih salah satu kabupaten/kota spesifik (misal: Donggala, Palu, Sigi)
     df_peg_filtered = df_peg_filtered[df_peg_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
     df_wil_filtered = df_wil_filtered[df_wil_filtered['kabupaten_kota'] == selected_kab]
     df_pros_filtered = df_pros_filtered[df_pros_filtered['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
     
     if selected_kec != "Semua Kecamatan":
         df_wil_filtered = df_wil_filtered[df_wil_filtered['kecamatan'] == selected_kec]
-else:
-    # PERBAIKAN: Jika "Semua Kabupaten/Kota" atau "Sulawesi Tengah", JANGAN difilter ke Kanwil saja.
-    # Biarkan df_peg_filtered, df_wil_filtered, dan df_pros_filtered memuat SELURUH baris data database.
-    pass
 
 
 # ==========================================
@@ -403,12 +410,11 @@ if selected_kec != "Semua Kecamatan":
 st.markdown("<br>", unsafe_allow_html=True)
 
 # ------------------------------------------
-# BARIS ATAS: METRICS & BAR CHART HORISONTAL DIPA MAKRO (AKURAT DATABASE)
+# BARIS ATAS: METRICS & BAR CHART HORISONTAL DIPA MAKRO
 # ------------------------------------------
 row_metrics = st.columns([1.8, 1.8, 1.8, 1.8, 1.8, 3.2])
 
 with row_metrics[0]:
-    # Menghitung total unik SDM dari data yang sudah difilter
     jumlah_sdm = df_peg_filtered['nama'].nunique()
     breakdown_asn = df_peg_filtered.groupby('kategori_asn')['nama'].count().to_dict()
     sub_asn_text = ", ".join([f"{k}: {v}" for k, v in breakdown_asn.items()]) if breakdown_asn else "PNS: 0, PPNPN: 0"
@@ -440,15 +446,14 @@ with row_metrics[5]:
     total_realisasi = df_peg_filtered['realisasi_dipa'].sum()
     sisa_dipa = max(0, total_target - total_realisasi)
     
-    # PERBAIKAN PERSENTASE REALISASI:
-    # Jika mode "Semua Kabupaten/Kota" / "Sulawesi Tengah", tampilkan Rerata Persentase Kinerja
-    if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"] and not df_pegawai.empty:
-        # Menghitung rerata persentase dari performa riil masing-masing kab_kota di database
+    # PERBAIKAN PERSENTASE REALISASI BERDASARKAN FILTER JELAS:
+    if selected_kab == "Semua Kabupaten/Kota" and not df_pegawai.empty:
+        # Jika memilih "Semua Kabupaten/Kota" -> Tampilkan Rerata Persentase Kinerja Seluruh Kabupaten
         df_realisasi_kab = df_pegawai.groupby('kabupaten_kota')[['target_dipa', 'realisasi_dipa']].sum().reset_index()
         df_realisasi_kab['persen'] = (df_realisasi_kab['realisasi_dipa'] / df_realisasi_kab['target_dipa'] * 100).fillna(0)
         pct_display = df_realisasi_kab['persen'].mean()
     else:
-        # Jika single kabupaten terpilih, gunakan persentase langsung daerah tersebut
+        # Jika memilih "Sulawesi Tengah" ATAU Kabupaten spesifik -> Hitung persentase langsung dari total baris data yang terfilter
         pct_display = (total_realisasi / total_target * 100) if total_target > 0 else 0
         
     if total_target > 0:
