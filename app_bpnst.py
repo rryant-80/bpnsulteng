@@ -207,7 +207,7 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR (PINDAH KE SIDEBAR) ---
-st.sidebar.subheader("📂 PPDM Berkas Prosedur")
+st.sidebar.subheader("📂 PPDM 2015-2026")
 
 # Menggunakan komponen st.toggle (Saklar ON/OFF) menggantikan radio button
 # Default diatur False (Nonaktif) yang berarti menampilkan data 2015-2025 terlebih dahulu
@@ -225,12 +225,10 @@ if 'thn_berkas' in df_pros_side.columns:
     
     if status_toggle:
         # Jika toggle AKTIF -> Ambil data tahun 2026 saja
-        df_pros_side = df_pros_side[df_pros_side['thn_berkas'] == 2026]
-        st.sidebar.caption("📅 *Mode Aktif: Menampilkan Berkas Tahun 2026 saja*")
+        df_pros_side = df_pros_side[df_pros_side['thn_berkas'] == 2026]        
     else:
         # Jika toggle NONAKTIF -> Ambil data rentang tahun 2015 s.d 2025
-        df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= 2025)]
-        st.sidebar.caption("📅 *Mode Standar: Menampilkan Berkas Tahun 2015 - 2025*")
+        df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= 2025)]        
 
 # Pemfilteran berdasarkan filter wilayah kabupaten yang dipilih user
 if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
