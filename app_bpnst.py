@@ -428,7 +428,7 @@ with row_metrics[1]:
     st.markdown(f'<div class="custom-card"><div class="card-title">🗺️ Luas APL (Ha)</div><div class="card-value">{format_lokal(tot_apl, True)}</div><div class="card-subtext">{format_lokal(pct_apl, True)}% dari Luas ADM ({format_lokal(tot_adm, True)} Ha)</div></div>', unsafe_allow_html=True)
 
 with row_metrics[2]:
-    val_kec = df_wil_filtered['kecamatan'].count()
+    val_kec = df_wil_filtered['kecamatan'].nunique()
     lbl_kec = "Total Kecamatan Se-Sulteng" if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"] else f"Kecamatan di {selected_kab}"
     st.markdown(f'<div class="custom-card"><div class="card-title">🧩 Kecamatan</div><div class="card-value">{format_lokal(val_kec, False)}</div><div class="card-subtext">{lbl_kec}</div></div>', unsafe_allow_html=True)
 
