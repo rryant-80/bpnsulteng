@@ -267,7 +267,7 @@ if not df_pros_side.empty:
     except Exception as e:
         st.sidebar.bar_chart(df_pros_calc, x='wilayah_x', y='jumlah_berkas', color='#2c3e50', height=220, use_container_width=True)
 else:
-    st.sidebar.caption("⚠️ Data berkas prosedur kosong pada filter tahun/wilayah ini.")
+    st.sidebar.caption("⚠️ Tidak ada tunggakan PDDM.")
 
 st.sidebar.markdown("---")
 
