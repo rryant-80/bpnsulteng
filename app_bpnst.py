@@ -149,7 +149,6 @@ if 'biaya' in df_prosedur.columns:
         df_prosedur['biaya'] = df_prosedur['biaya'].astype(str).str.replace('Rp', '', regex=False).str.replace('.', '', regex=False)
     df_prosedur['biaya'] = pd.to_numeric(df_prosedur['biaya'], errors='coerce').fillna(0)
 
-
 # ==========================================
 # 3. SIDEBAR (FILTER & GRAFIK MAKRO INDEPENDEN)
 # ==========================================
@@ -169,7 +168,7 @@ selected_kec = st.sidebar.selectbox("Kecamatan", list_kec)
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 1: TINGKAT REALISASI GLOBAL ---
-st.sidebar.subheader("📊 % Realisasi Anggaran Satker")
+st.sidebar.subheader("📊 % Realisasi Anggaran Se-Sulteng")
 if not df_pegawai.empty:
     df_side_calc = df_pegawai.groupby('kabupaten_kota')[['target_dipa', 'realisasi_dipa']].sum().reset_index()
     df_side_calc['persen_realisasi'] = (df_side_calc['realisasi_dipa'] / df_side_calc['target_dipa'] * 100).fillna(0)
@@ -195,94 +194,186 @@ if not df_pegawai.empty:
         fig_sidebar.update_layout(
             margin=dict(t=25, b=15, l=5, r=5), height=240,
             xaxis=dict(title=None, tickfont=dict(size=9, weight='bold'), type='category', dtick=1),
-            yaxis=dict(title=None, tickfont=dict(size=9), maxallowed=60, range=[0, 60]),
+            yaxis=dict(title=None, tickfont=dict(size=9), maxallowed=100, range=[0, 100]),
             showlegend=False
         )
         st.sidebar.plotly_chart(fig_sidebar, use_container_width=True)
     except Exception as e:
         st.sidebar.bar_chart(df_side_calc, x='wilayah_singkat', y='persen_realisasi', color='#2ecc71', height=200, use_container_width=True)
 
+
 st.sidebar.markdown("---")
 
-# --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR (PINDAH KE SIDEBAR) ---
-st.sidebar.subheader("📂 PPDM 2015-2026")
-
-# Menggunakan komponen st.toggle (Saklar ON/OFF) menggantikan radio button
-# Default diatur False (Nonaktif) yang berarti menampilkan data 2015-2025 terlebih dahulu
+# --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR ---
+st.sidebar.subheader("📂 PPDM Berkas Prosedur")
 status_toggle = st.sidebar.toggle("Tampilkan Tahun 2026 Saja", value=False)
 
-# Filter data GID Prosedur secara lokal untuk kebutuhan grafik di sidebar
 df_pros_side = df_prosedur.copy()
 
-# =========================================================================
-# LOGIKA STRATEGI FILTER TAHUN BERDASARKAN TOGGLE SAKLAR
-# =========================================================================
 if 'thn_berkas' in df_pros_side.columns:
-    # Memastikan tipe data tahun dikonversi ke numerik/angka secara aman
     df_pros_side['thn_berkas'] = pd.to_numeric(df_pros_side['thn_berkas'], errors='coerce').fillna(0)
-    
     if status_toggle:
-        # Jika toggle AKTIF -> Ambil data tahun 2026 saja
-        df_pros_side = df_pros_side[df_pros_side['thn_berkas'] == 2026]        
+        df_pros_side = df_pros_side[df_pros_side['thn_berkas'] == 2026]
+        st.sidebar.caption("📅 *Mode Aktif: Menampilkan Berkas Tahun 2026 saja*")
     else:
-        # Jika toggle NONAKTIF -> Ambil data rentang tahun 2015 s.d 2025
-        df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= 2025)]        
+        df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= 2025)]
+        st.sidebar.caption("📅 *Mode Standar: Menampilkan Berkas Tahun 2015 - 2025*")
 
-# Pemfilteran berdasarkan filter wilayah kabupaten yang dipilih user
 if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
     df_pros_side = df_pros_side[df_pros_side['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
 
 if not df_pros_side.empty:
-    # LOGIKA DINAMIS: Penentuan poros sumbu X dan Grouping berdasarkan filter aktif
     if selected_kab in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
         df_pros_calc = df_pros_side.groupby('kabupaten_kota').agg(
             jumlah_berkas=('nmr_berkas', 'count'),
             total_biaya=('biaya', 'sum')
         ).reset_index()
-        x_axis_side = 'kabupaten_kota'
+        # REVISI: Menerapkan map singkatan wilayah saat berada pada tampilan makro
+        df_pros_calc['wilayah_x'] = df_pros_calc['kabupaten_kota'].apply(singgkat_nama_wilayah)
+        custom_nama_lengkap = list(df_pros_calc['kabupaten_kota'])
     else:
-        # Jika kabupaten aktif, grouping dan sumbu X menggunakan 'posisi_berkas'
         df_pros_calc = df_pros_side.groupby('posisi_berkas').agg(
             jumlah_berkas=('nmr_berkas', 'count'),
             total_biaya=('biaya', 'sum')
         ).reset_index()
-        x_axis_side = 'posisi_berkas'
+        df_pros_calc['wilayah_x'] = df_pros_calc['posisi_berkas']
+        custom_nama_lengkap = list(df_pros_calc['posisi_berkas'])
     
-    # Urutkan dari jumlah berkas terbanyak ke terendah
     df_pros_calc = df_pros_calc.sort_values(by='jumlah_berkas', ascending=False)
-    
-    # Siapkan data kustom untuk hover rupiah biaya
     hover_biaya_side = [f"Rp {format_lokal(val, False)}" for val in df_pros_calc['total_biaya']]
+    custom_hover_pros = list(zip(custom_nama_lengkap, hover_biaya_side))
     
     try:
         fig_pros_sidebar = go.Figure()
         fig_pros_sidebar.add_trace(go.Bar(
-            x=df_pros_calc[x_axis_side],
+            x=df_pros_calc['wilayah_x'],
             y=df_pros_calc['jumlah_berkas'],
             marker_color='#2c3e50',
             text=df_pros_calc['jumlah_berkas'].astype(str),
             textposition='outside',
             textfont=dict(size=8, weight='bold'),
-            customdata=hover_biaya_side,
+            customdata=custom_hover_pros,
             hovertemplate=(
-                "<b>Posisi/Nama:</b> %{x}<br>"
+                "<b>Posisi/Nama:</b> %{customdata[0]}<br>"
                 "<b>Jumlah Berkas:</b> %{y} berkas<br>"
-                "<b>Total Biaya:</b> %{customdata}"
+                "<b>Total Biaya:</b> %{customdata[1]}"
                 "<extra></extra>"
             )
         ))
-        
         fig_pros_sidebar.update_layout(
-            margin=dict(t=25, b=25, l=5, r=5), height=260,
-            showlegend=False,
+            margin=dict(t=25, b=25, l=5, r=5), height=260, showlegend=False,
             xaxis=dict(title=None, tickfont=dict(size=8, weight='bold'), type='category', dtick=1),
             yaxis=dict(title=None, tickfont=dict(size=9))
         )
         st.sidebar.plotly_chart(fig_pros_sidebar, use_container_width=True)
     except Exception as e:
-        st.sidebar.bar_chart(df_pros_calc, x=x_axis_side, y='jumlah_berkas', color='#2c3e50', height=220, use_container_width=True)
+        st.sidebar.bar_chart(df_pros_calc, x='wilayah_x', y='jumlah_berkas', color='#2c3e50', height=220, use_container_width=True)
 else:
     st.sidebar.caption("⚠️ Data berkas prosedur kosong pada filter tahun/wilayah ini.")
+
+
+st.sidebar.markdown("---")
+
+# --- GRAFIK SIDEBAR 3: GRAFIK MALAH INDEPENDEN % KW456 ---
+st.sidebar.subheader("📉 % KW456 Seluruh Kabupaten/Kota")
+if not df_wilayah.empty:
+    # Agregasi data dasar murni tanpa terpengaruh filter apa pun
+    df_kw_calc = df_wilayah.groupby('kabupaten_kota').agg(
+        total_kw=('jumlah_kw456', 'sum'),
+        total_bt=('jumlah_bt', 'sum'),
+        total_luas_kw=('luas_kw456', 'sum')
+    ).reset_index()
+    
+    df_kw_calc['persen_kw'] = (df_kw_calc['total_kw'] / df_kw_calc['total_bt'] * 100).fillna(0)
+    df_kw_calc['wilayah_singkat'] = df_kw_calc['kabupaten_kota'].apply(singgkat_nama_wilayah)
+    df_kw_calc = df_kw_calc.sort_values(by='persen_kw', ascending=False)
+    
+    try:
+        fig_kw_side = go.Figure()
+        custom_hover_kw = list(zip(
+            list(df_kw_calc['kabupaten_kota']),
+            [format_lokal(v, False) for v in df_kw_calc['total_kw']],
+            [format_lokal(v / 10000, True) for v in df_kw_calc['total_luas_kw']], # Konversi m2 ke Ha untuk Luas KW
+            [format_lokal(v, False) for v in df_kw_calc['total_bt']]
+        ))
+        
+        fig_kw_side.add_trace(go.Bar(
+            x=df_kw_calc['wilayah_singkat'],
+            y=df_kw_calc['persen_kw'],
+            marker_color='#2980b9',
+            text=df_kw_calc['persen_kw'].apply(lambda x: f"{format_lokal(x, True)}%"),
+            textposition='outside',
+            textfont=dict(size=8, weight='bold'),
+            customdata=custom_hover_kw,
+            hovertemplate=(
+                "<b>Kabupaten/Kota:</b> %{customdata[0]}<br>"
+                "<b>Jumlah KW456:</b> %{customdata[1]}<br>"
+                "<b>Luas KW456:</b> %{customdata[2]} Ha<br>"
+                "<b>Jumlah BT:</b> %{customdata[3]}<br>"
+                "<extra></extra>"
+            )
+        ))
+        fig_kw_side.update_layout(
+            margin=dict(t=25, b=25, l=5, r=5), height=260, showlegend=False,
+            xaxis=dict(title=None, tickfont=dict(size=8, weight='bold'), type='category', dtick=1),
+            yaxis=dict(title=None, tickfont=dict(size=9))
+        )
+        st.sidebar.plotly_chart(fig_kw_side, use_container_width=True)
+    except Exception as e:
+        st.sidebar.bar_chart(df_kw_calc, x='wilayah_singkat', y='persen_kw', color='#2980b9', height=220, use_container_width=True)
+
+
+st.sidebar.markdown("---")
+
+# --- GRAFIK SIDEBAR 4: GRAFIK MAKRO INDEPENDEN % PRASERTEL ---
+st.sidebar.subheader("📉 % Prasertel Seluruh Kabupaten/Kota")
+if not df_wilayah.empty:
+    df_pt_calc = df_wilayah.groupby('kabupaten_kota').agg(
+        total_sertel=('pra_sertel', 'sum'),
+        total_bt_valid=('bt_valid', 'sum'),
+        total_btel=('pra_btel', 'sum'),
+        total_suel=('pra_suel', 'sum')
+    ).reset_index()
+    
+    df_pt_calc['persen_sertel'] = (df_pt_calc['total_sertel'] / df_pt_calc['total_bt_valid'] * 100).fillna(0)
+    df_pt_calc['wilayah_singkat'] = df_pt_calc['kabupaten_kota'].apply(singgkat_nama_wilayah)
+    df_pt_calc = df_pt_calc.sort_values(by='persen_sertel', ascending=False)
+    
+    try:
+        fig_pt_side = go.Figure()
+        custom_hover_pt = list(zip(
+            list(df_pt_calc['kabupaten_kota']),
+            [format_lokal(v, False) for v in df_pt_calc['total_bt_valid']],
+            [format_lokal(v, False) for v in df_pt_calc['total_sertel']],
+            [format_lokal(v, False) for v in df_pt_calc['total_btel']],
+            [format_lokal(v, False) for v in df_pt_calc['total_suel']]
+        ))
+        
+        fig_pt_side.add_trace(go.Bar(
+            x=df_pt_calc['wilayah_singkat'],
+            y=df_pt_calc['persen_sertel'],
+            marker_color='#e67e22',
+            text=df_pt_calc['persen_sertel'].apply(lambda x: f"{format_lokal(x, True)}%"),
+            textposition='outside',
+            textfont=dict(size=8, weight='bold'),
+            customdata=custom_hover_pt,
+            hovertemplate=(
+                "<b>Kabupaten/Kota:</b> %{customdata[0]}<br>"
+                "<b>BT Valid:</b> %{customdata[1]}<br>"
+                "<b>Pra Sertel:</b> %{customdata[2]}<br>"
+                "<b>Pra Btel:</b> %{customdata[3]}<br>"
+                "<b>Pra Suel:</b> %{customdata[4]}<br>"
+                "<extra></extra>"
+            )
+        ))
+        fig_pt_side.update_layout(
+            margin=dict(t=25, b=25, l=5, r=5), height=260, showlegend=False,
+            xaxis=dict(title=None, tickfont=dict(size=8, weight='bold'), type='category', dtick=1),
+            yaxis=dict(title=None, tickfont=dict(size=9))
+        )
+        st.sidebar.plotly_chart(fig_pt_side, use_container_width=True)
+    except Exception as e:
+        st.sidebar.bar_chart(df_pt_calc, x='wilayah_singkat', y='persen_sertel', color='#e67e22', height=220, use_container_width=True)
 
 # ==========================================
 # PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
