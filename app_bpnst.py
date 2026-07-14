@@ -205,10 +205,34 @@ if not df_pegawai.empty:
 st.sidebar.markdown("---")
 
 # --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR (PINDAH KE SIDEBAR) ---
-st.sidebar.subheader("📂 PPDM 2015-2025")
+st.sidebar.subheader("📂 PPDM 2015-2026")
+opsi_tahun = st.sidebar.radio(
+    "Pilih Rentang Tahun Analisis PPDM:",
+    options=["2015 - 2025 (Standar)", "2015 - 2026 (Lengkap)"],
+    index=1  # Default otomatis mengarah ke rentang lengkap hingga 2026 sesuai kebutuhan excel baru Anda
+)
+
+# Menentukan batas tahun maksimal berdasarkan toggle yang dipilih user
+if "2026" in opsi_tahun:
+    tahun_maksimal = 2026
+else:
+    tahun_maksimal = 2025
+
+st.sidebar.caption(f"Aktif: Berkas difilter dari thn 2015 s.d {tahun_maksimal}")
 
 # Filter data GID Prosedur secara lokal untuk kebutuhan grafik di sidebar
 df_pros_side = df_prosedur.copy()
+
+# =========================================================================
+# Wajib Ditambahkan: Langkah Pemfilteran Berdasarkan Variabel tahun_maksimal
+# =========================================================================
+if 'thn_berkas' in df_pros_side.columns:
+    # Memastikan tipe data tahun di pandas dikonversi ke angka biasa
+    df_pros_side['thn_berkas'] = pd.to_numeric(df_pros_side['thn_berkas'], errors='coerce').fillna(0)
+    # Menyaring data secara aktual: hanya mengambil berkas antara tahun 2015 hingga tahun_maksimal
+    df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= tahun_maksimal)]
+
+# Pemfilteran berdasarkan filter wilayah kabupaten yang dipilih
 if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
     df_pros_side = df_pros_side[df_pros_side['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
 
@@ -262,7 +286,8 @@ if not df_pros_side.empty:
     except Exception as e:
         st.sidebar.bar_chart(df_pros_calc, x=x_axis_side, y='jumlah_berkas', color='#2c3e50', height=220, use_container_width=True)
 else:
-    st.sidebar.caption("Data prosedur tidak tersedia.")
+    st.sidebar.caption("Data prosedur tidak tersedia untuk rentang tahun ini.")
+
 # ==========================================
 # PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
 # ==========================================
