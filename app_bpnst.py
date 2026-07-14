@@ -204,8 +204,6 @@ if not df_pegawai.empty:
 
 st.sidebar.markdown("---")
 
-st.sidebar.markdown("---")
-
 # --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR (PINDAH KE SIDEBAR) ---
 st.sidebar.subheader("📂 PPDM 2015-2026")
 
