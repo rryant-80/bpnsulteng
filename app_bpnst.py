@@ -204,35 +204,35 @@ if not df_pegawai.empty:
 
 st.sidebar.markdown("---")
 
+st.sidebar.markdown("---")
+
 # --- GRAFIK SIDEBAR 2: GRAFIK VOLUME BERKAS PROSEDUR (PINDAH KE SIDEBAR) ---
-st.sidebar.subheader("📂 PPDM 2015-2026")
-opsi_tahun = st.sidebar.radio(
-    "Pilih Rentang Tahun Analisis PPDM:",
-    options=["2015 - 2025 (Standar)", "2015 - 2026 (Lengkap)"],
-    index=1  # Default otomatis mengarah ke rentang lengkap hingga 2026 sesuai kebutuhan excel baru Anda
-)
+st.sidebar.subheader("📂 PPDM Berkas Prosedur")
 
-# Menentukan batas tahun maksimal berdasarkan toggle yang dipilih user
-if "2026" in opsi_tahun:
-    tahun_maksimal = 2026
-else:
-    tahun_maksimal = 2025
-
-st.sidebar.caption(f"Aktif: Berkas difilter dari thn 2015 s.d {tahun_maksimal}")
+# Menggunakan komponen st.toggle (Saklar ON/OFF) menggantikan radio button
+# Default diatur False (Nonaktif) yang berarti menampilkan data 2015-2025 terlebih dahulu
+status_toggle = st.sidebar.toggle("Tampilkan Tahun 2026 Saja", value=False)
 
 # Filter data GID Prosedur secara lokal untuk kebutuhan grafik di sidebar
 df_pros_side = df_prosedur.copy()
 
 # =========================================================================
-# Wajib Ditambahkan: Langkah Pemfilteran Berdasarkan Variabel tahun_maksimal
+# LOGIKA STRATEGI FILTER TAHUN BERDASARKAN TOGGLE SAKLAR
 # =========================================================================
 if 'thn_berkas' in df_pros_side.columns:
-    # Memastikan tipe data tahun di pandas dikonversi ke angka biasa
+    # Memastikan tipe data tahun dikonversi ke numerik/angka secara aman
     df_pros_side['thn_berkas'] = pd.to_numeric(df_pros_side['thn_berkas'], errors='coerce').fillna(0)
-    # Menyaring data secara aktual: hanya mengambil berkas antara tahun 2015 hingga tahun_maksimal
-    df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= tahun_maksimal)]
+    
+    if status_toggle:
+        # Jika toggle AKTIF -> Ambil data tahun 2026 saja
+        df_pros_side = df_pros_side[df_pros_side['thn_berkas'] == 2026]
+        st.sidebar.caption("📅 *Mode Aktif: Menampilkan Berkas Tahun 2026 saja*")
+    else:
+        # Jika toggle NONAKTIF -> Ambil data rentang tahun 2015 s.d 2025
+        df_pros_side = df_pros_side[(df_pros_side['thn_berkas'] >= 2015) & (df_pros_side['thn_berkas'] <= 2025)]
+        st.sidebar.caption("📅 *Mode Standar: Menampilkan Berkas Tahun 2015 - 2025*")
 
-# Pemfilteran berdasarkan filter wilayah kabupaten yang dipilih
+# Pemfilteran berdasarkan filter wilayah kabupaten yang dipilih user
 if selected_kab not in ["Semua Kabupaten/Kota", "Sulawesi Tengah"]:
     df_pros_side = df_pros_side[df_pros_side['kabupaten_kota'].str.contains(selected_kab, case=False, na=False)]
 
@@ -245,7 +245,7 @@ if not df_pros_side.empty:
         ).reset_index()
         x_axis_side = 'kabupaten_kota'
     else:
-        # REVISI: Jika kabupaten aktif, grouping dan sumbu X menggunakan 'posisi_berkas'
+        # Jika kabupaten aktif, grouping dan sumbu X menggunakan 'posisi_berkas'
         df_pros_calc = df_pros_side.groupby('posisi_berkas').agg(
             jumlah_berkas=('nmr_berkas', 'count'),
             total_biaya=('biaya', 'sum')
@@ -286,7 +286,7 @@ if not df_pros_side.empty:
     except Exception as e:
         st.sidebar.bar_chart(df_pros_calc, x=x_axis_side, y='jumlah_berkas', color='#2c3e50', height=220, use_container_width=True)
 else:
-    st.sidebar.caption("Data prosedur tidak tersedia untuk rentang tahun ini.")
+    st.sidebar.caption("⚠️ Data berkas prosedur kosong pada filter tahun/wilayah ini.")
 
 # ==========================================
 # PRE-PROCESSING DATA FILTER SEBELUM LAYOUT
