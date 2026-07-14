@@ -80,7 +80,7 @@ MAP_SINGKATAN = {
     "poso": "PS",
     "sigi": "SG",
     "tojo una-una": "TU",
-    "kanwil sulawesi tengah": "ST",
+    "sulawesi tengah": "ST",
     "tolitoli": "TL"
 }
 
