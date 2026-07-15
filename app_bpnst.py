@@ -603,7 +603,6 @@ with col_right:
 # =========================================================================
     # --- MODEL MONITORING LAMPU STROBO SOP (DIBAWAH PROFIL & GRAFIK PERSIL) ---
     # =========================================================================
-    st.markdown("<br><hr>", unsafe_allow_html=True)
     st.subheader("🚨 Peringatan Durasi SOP Berkas (Kakan, Kasi 1, Kasi 2, Loket)")
     
     if not df_pros_filtered.empty:
