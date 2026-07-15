@@ -55,6 +55,28 @@ st.markdown("""
         font-size: 10px;
         color: #94a3b8;
     }
+    /* Efek Kedip Lampu Strobo Merah */
+    @keyframes strobo-red {
+        0% { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
+        50% { background-color: #b91c1c; box-shadow: 0 0 16px #b91c1c; }
+        100% { background-color: #ef4444; box-shadow: 0 0 4px #ef4444; }
+    }
+    .strobo-lamp {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        display: inline-block;
+        animation: strobo-red 1s infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+    .strobo-container {
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        padding: 12px;
+        background-color: #fef2f2;
+        margin-bottom: 16px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -577,4 +599,95 @@ with col_right:
         fig_batang2.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=410)
         st.plotly_chart(fig_batang2, use_container_width=True)
 
+    st.markdown("<br><hr><br>", unsafe_allow_html=True)
+# =========================================================================
+    # --- MODEL MONITORING LAMPU STROBO SOP (DIBAWAH PROFIL & GRAFIK PERSIL) ---
+    # =========================================================================
+    st.markdown("<br><hr>", unsafe_allow_html=True)
+    st.subheader("🚨 Peringatan Durasi SOP Berkas (Kakan, Kasi 1, Kasi 2, Loket)")
+    
+    if not df_pros_filtered.empty:
+        df_strobo = df_pros_filtered.copy()
+        
+        # 1. Parsing Tanggal & Kalkulasi Batas Toleransi SOP
+        df_strobo['tgl_mulai'] = pd.to_datetime(df_strobo['tgl_mulai'], errors='coerce')
+        df_strobo['durasi'] = pd.to_numeric(df_strobo['durasi'], errors='coerce').fillna(0)
+        
+        # Batas Tanggal Akhir SOP = tgl_mulai + durasi hari
+        df_strobo['batas_sop'] = df_strobo['tgl_mulai'] + pd.to_timedelta(df_strobo['durasi'], unit='D')
+        
+        # Berkas dianggap melebihi SOP jika batas_sop sudah lewat dari waktu sekarang (Tahun Berjalan 2026)
+        waktu_sekarang = pd.Timestamp.now()
+        df_strobo['over_sop'] = df_strobo['batas_sop'] < waktu_sekarang
+        
+        # 2. Filter Kategori Posisi Berkas yang Diijinkan
+        kategori_target = ["Kakan", "Kasi 1", "Kasi 2", "Loket"]
+        
+        # Pembersihan teks & pencocokan parsial string posisi_berkas
+        def cek_kategori(posisi):
+            pos_clean = str(posisi).strip().lower()
+            for kat in kategori_target:
+                if kat.lower() in pos_clean:
+                    return kat
+            return None
+            
+        df_strobo['kategori_clean'] = df_strobo['posisi_berkas'].apply(cek_kategori)
+        
+        # Menyaring berkas yang: Melebihi SOP DAN masuk dalam 4 Kategori Jabatan
+        df_alert = df_strobo[(df_strobo['over_sop'] == True) & (df_strobo['kategori_clean'].notna())]
+        
+        # 3. Distribusi Visualisasi Lampu Strobo per Kategori Jabatan
+        col_st1, col_st2, col_st3, col_st4 = st.columns(4)
+        mapping_blocks = [("Kakan", col_st1), ("Kasi 1", col_st2), ("Kasi 2", col_st3), ("Loket", col_st4)]
+        
+        for nama_kat, kolom_tujuan in mapping_blocks:
+            with kolom_tujuan:
+                df_kat_spesifik = df_alert[df_alert['kategori_clean'] == nama_kat]
+                jumlah_over = len(df_kat_spesifik)
+                
+                if jumlah_over > 0:
+                    # Gabungkan nmr_berkas/thn_berkas untuk hover data kustom
+                    df_kat_spesifik['nmr_thn'] = df_kat_spesifik['nmr_berkas'].astype(str) + "/" + df_kat_spesifik['thn_berkas'].astype(str)
+                    
+                    # Kelompokkan per jenis nama_prosedur untuk visualisasi ringkas di dalam grafik mini
+                    df_mini_chart = df_kat_spesifik.groupby('nama_prosedur').agg(
+                        vol=('nmr_berkas', 'count'),
+                        list_berkas=('nmr_thn', lambda x: "<br>".join(list(x)))
+                    ).reset_index()
+                    
+                    # Tampilkan komponen Lampu Strobo berkedip via HTML
+                    st.markdown(
+                        f'<div class="strobo-container">'
+                        f'<span class="strobo-lamp"></span>'
+                        f'<span style="font-weight:bold; color:#991b1b; font-size:14px;">{nama_kat.upper()} ({jumlah_over} Berkas)</span>'
+                        f'</div>', 
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Tampilkan Grafik Batang Mini Pendukung dengan template hover nomor berkas lengkap
+                    fig_mini = go.Figure()
+                    fig_mini.add_trace(go.Bar(
+                        x=df_mini_chart['nama_prosedur'],
+                        y=df_mini_chart['vol'],
+                        marker_color='#ef4444',
+                        customdata=df_mini_chart['list_berkas'],
+                        hovertemplate="<b>Prosedur:</b> %{x}<br><b>Jumlah:</b> %{y} berkas<br><br><b>Daftar Berkas:</b><br>%{customdata}<extra></extra>"
+                    ))
+                    fig_mini.update_layout(
+                        height=160, margin=dict(t=5, b=5, l=5, r=5), showlegend=False,
+                        xaxis=dict(showticklabels=False, title=None),
+                        yaxis=dict(title=None, tickfont=dict(size=9))
+                    )
+                    st.plotly_chart(fig_mini, use_container_width=True, key=f"strobo_chart_{nama_kat}")
+                else:
+                    # Jika aman/tidak ada berkas mandek, tampilkan lampu hijau tenang
+                    st.markdown(
+                        f'<div style="border:1px solid #a7f3d0; border-radius:8px; padding:12px; background-color:#ecfdf5;">'
+                        f'<span style="width:12px; height:12px; border-radius:50%; background-color:#10b981; display:inline-block; margin-right:8px; vertical-align:middle;"></span>'
+                        f'<span style="font-weight:bold; color:#065f46; font-size:14px;">{nama_kat.upper()} (Aman)</span>'
+                        f'</div>', 
+                        unsafe_allow_html=True
+                    )
+    else:
+        st.info("Tidak ada data pelacakan durasi prosedur berkas saat ini.")
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
