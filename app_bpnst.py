@@ -590,14 +590,13 @@ with col_right:
         # Batas Tanggal Akhir SOP = tgl_mulai + durasi hari
         df_strobo['batas_sop'] = df_strobo['tgl_mulai'] + pd.to_timedelta(df_strobo['durasi'], unit='D')
         
-        # Berkas dianggap melebihi SOP jika batas_sop sudah lewat dari waktu sekarang (Tahun Berjalan 2026)
+        # Berkas dianggap melebihi SOP jika batas_sop sudah lewat dari waktu sekarang
         waktu_sekarang = pd.Timestamp.now()
         df_strobo['over_sop'] = df_strobo['batas_sop'] < waktu_sekarang
         
         # 2. Filter Kategori Posisi Berkas yang Diijinkan
         kategori_target = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
         
-        # Pembersihan teks & pencocokan parsial string posisi_berkas
         def cek_kategori(posisi):
             pos_clean = str(posisi).strip().lower()
             for kat in kategori_target:
@@ -608,15 +607,32 @@ with col_right:
         df_strobo['kategori_clean'] = df_strobo['posisi_berkas'].apply(cek_kategori)
         
         # Menyaring berkas yang: Melebihi SOP DAN masuk dalam 4 Kategori Jabatan
-        df_alert = df_strobo[(df_strobo['over_sop'] == True) & (df_strobo['kategori_clean'].notna())]
+        df_alert = df_strobo[(df_strobo['over_sop'] == True) & (df_strobo['kategori_clean'].notna())].copy()
         
+        # =====================================================================
+        # PEMBUATAN COLOR MAP GLOBAL AGAR WARNA KONSISTEN PER NAMA_PROSEDUR
+        # =====================================================================
+        # Palet warna profesional yang kontras dan variatif
+        palet_warna = [
+            '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+            '#34495e', '#27ae60', '#2980b9', '#8e44ad', '#f1c40f'
+        ]
+        
+        prosedur_unik = sorted(df_alert['nama_prosedur'].dropna().unique())
+        warna_prosedur_dict = {
+            prosedur: palet_warna[i % len(palet_warna)] 
+            for i, prosedur in enumerate(prosedur_unik)
+        }
+        # =====================================================================
+
         # 3. Distribusi Visualisasi Lampu Strobo per Kategori Jabatan
         col_st1, col_st2, col_st3, col_st4 = st.columns(4)
         mapping_blocks = [("Kakan", col_st1), ("Kasi SP", col_st2), ("Kasi PHP", col_st3), ("Loket", col_st4)]
         
         for nama_kat, kolom_tujuan in mapping_blocks:
             with kolom_tujuan:
-                df_kat_spesifik = df_alert[df_alert['kategori_clean'] == nama_kat]
+                df_kat_spesifik = df_alert[df_alert['kategori_clean'] == nama_kat].copy()
                 jumlah_over = len(df_kat_spesifik)
                 
                 if jumlah_over > 0:
@@ -629,6 +645,9 @@ with col_right:
                         list_berkas=('nmr_thn', lambda x: "<br>".join(list(x)))
                     ).reset_index()
                     
+                    # Petakan warna seragam berdasarkan kecocokan nama_prosedur dari kamus global
+                    warna_batang_kolom = [warna_prosedur_dict[p] for p in df_mini_chart['nama_prosedur']]
+                    
                     # Tampilkan komponen Lampu Strobo berkedip via HTML
                     st.markdown(
                         f'<div class="strobo-container">'
@@ -638,12 +657,12 @@ with col_right:
                         unsafe_allow_html=True
                     )
                     
-                    # Tampilkan Grafik Batang Mini Pendukung dengan template hover nomor berkas lengkap
+                    # Tampilkan Grafik Batang Mini Pendukung dengan warna terpetakan seragam
                     fig_mini = go.Figure()
                     fig_mini.add_trace(go.Bar(
                         x=df_mini_chart['nama_prosedur'],
                         y=df_mini_chart['vol'],
-                        marker_color='#ef4444',
+                        marker_color=warna_batang_kolom, # Menerapkan list warna seragam per nama_prosedur
                         customdata=df_mini_chart['list_berkas'],
                         hovertemplate="<b>Prosedur:</b> %{x}<br><b>Jumlah:</b> %{y} berkas<br><br><b>Daftar Berkas:</b><br>%{customdata}<extra></extra>"
                     ))
@@ -661,7 +680,7 @@ with col_right:
                         f'<span style="font-weight:bold; color:#065f46; font-size:14px;">{nama_kat.upper()} (Aman)</span>'
                         f'</div>', 
                         unsafe_allow_html=True
-                    )
+                    )                    
     else:
         st.info("Tidak ada data pelacakan durasi prosedur berkas saat ini.")
     st.markdown("<br><hr><br>", unsafe_allow_html=True)    
