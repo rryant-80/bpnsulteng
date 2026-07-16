@@ -578,7 +578,7 @@ with col_right:
     # =========================================================================
     # --- MODEL MONITORING LAMPU STROBO SOP (DIBAWAH PROFIL & GRAFIK PERSIL) ---
     # =========================================================================
-    st.subheader("🚨 Peringatan Durasi SOP Berkas (Kakan, Kasi 1, Kasi 2, Loket)")
+    st.subheader("🚨 Berkas Permohonan Melebihi Durasi SOP")
     
     if not df_pros_filtered.empty:
         df_strobo = df_pros_filtered.copy()
@@ -612,7 +612,7 @@ with col_right:
         
         # 3. Distribusi Visualisasi Lampu Strobo per Kategori Jabatan
         col_st1, col_st2, col_st3, col_st4 = st.columns(4)
-        mapping_blocks = [("Kakan", col_st1), ("Kasi 1", col_st2), ("Kasi 2", col_st3), ("Loket", col_st4)]
+        mapping_blocks = [("Kakan", col_st1), ("Kasi SP", col_st2), ("Kasi PHP", col_st3), ("Loket", col_st4)]
         
         for nama_kat, kolom_tujuan in mapping_blocks:
             with kolom_tujuan:
