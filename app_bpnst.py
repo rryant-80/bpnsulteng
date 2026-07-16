@@ -575,32 +575,7 @@ with col_right:
         df_chart = df_wil_filtered.groupby('desa_kelurahan').sum().reset_index()
         x_axis_column = 'desa_kelurahan'
 
-    # GRAFIK 1: PERSIL
-    st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil")
-    if not df_chart.empty:
-        fig_batang1 = go.Figure()
-        fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_persil'], name='Jumlah Persil', marker_color='#1d4ed8'))
-        fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_su'], name='Jumlah SU', marker_color='#3b82f6'))
-        fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_suvalid'], name='SU Valid', marker_color='#10b981'))
-        fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_suel'], name='Pra SUEL', marker_color='#f59e0b'))
-        fig_batang1.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=410)
-        st.plotly_chart(fig_batang1, use_container_width=True)
-
-    st.markdown("<br><hr><br>", unsafe_allow_html=True)
-
-    # GRAFIK 2: BUKU TANAH & PRASERTEL
-    st.markdown("### 📖 Grafik Validasi Buku Tanah & Prasertel")
-    if not df_chart.empty:
-        fig_batang2 = go.Figure()
-        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_bt'], name='Jumlah BT', marker_color='#6d28d9'))
-        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['bt_valid'], name='BT Valid', marker_color='#059669'))
-        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_btel'], name='Pra BTEL', marker_color='#d97706'))
-        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_sertel'], name='Pra SERTEL', marker_color='#e74c3c'))
-        fig_batang2.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=410)
-        st.plotly_chart(fig_batang2, use_container_width=True)
-
-    st.markdown("<br><hr><br>", unsafe_allow_html=True)
-# =========================================================================
+    # =========================================================================
     # --- MODEL MONITORING LAMPU STROBO SOP (DIBAWAH PROFIL & GRAFIK PERSIL) ---
     # =========================================================================
     st.subheader("🚨 Peringatan Durasi SOP Berkas (Kakan, Kasi 1, Kasi 2, Loket)")
@@ -689,4 +664,30 @@ with col_right:
                     )
     else:
         st.info("Tidak ada data pelacakan durasi prosedur berkas saat ini.")
+    st.markdown("<br><hr><br>", unsafe_allow_html=True)    
+    
+    # GRAFIK 1: PERSIL
+    st.markdown("### 🗺️ Grafik Pemetaan & Validasi Persil")
+    if not df_chart.empty:
+        fig_batang1 = go.Figure()
+        fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_persil'], name='Jumlah Persil', marker_color='#1d4ed8'))
+        fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_su'], name='Jumlah SU', marker_color='#3b82f6'))
+        fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_suvalid'], name='SU Valid', marker_color='#10b981'))
+        fig_batang1.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_suel'], name='Pra SUEL', marker_color='#f59e0b'))
+        fig_batang1.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=410)
+        st.plotly_chart(fig_batang1, use_container_width=True)
+
+    st.markdown("<br><hr><br>", unsafe_allow_html=True)
+
+    # GRAFIK 2: BUKU TANAH & PRASERTEL
+    st.markdown("### 📖 Grafik Validasi Buku Tanah & Prasertel")
+    if not df_chart.empty:
+        fig_batang2 = go.Figure()
+        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['jumlah_bt'], name='Jumlah BT', marker_color='#6d28d9'))
+        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['bt_valid'], name='BT Valid', marker_color='#059669'))
+        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_btel'], name='Pra BTEL', marker_color='#d97706'))
+        fig_batang2.add_trace(go.Bar(x=df_chart[x_axis_column], y=df_chart['pra_sertel'], name='Pra SERTEL', marker_color='#e74c3c'))
+        fig_batang2.update_layout(barmode='group', xaxis_title="Daftar Wilayah", yaxis_title="Volume", legend_orientation="h", legend=dict(x=0, y=1.12), margin=dict(t=40, b=30), height=410)
+        st.plotly_chart(fig_batang2, use_container_width=True)
+
     st.markdown("<br><hr><br>", unsafe_allow_html=True)
