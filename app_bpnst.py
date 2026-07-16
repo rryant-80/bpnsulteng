@@ -595,7 +595,7 @@ with col_right:
         df_strobo['over_sop'] = df_strobo['batas_sop'] < waktu_sekarang
         
         # 2. Filter Kategori Posisi Berkas yang Diijinkan
-        kategori_target = ["Kakan", "Kasi 1", "Kasi 2", "Loket"]
+        kategori_target = ["Kakan", "Kasi SP", "Kasi PHP", "Loket"]
         
         # Pembersihan teks & pencocokan parsial string posisi_berkas
         def cek_kategori(posisi):
