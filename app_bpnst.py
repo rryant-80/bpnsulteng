@@ -633,7 +633,7 @@ with col_right:
                     st.markdown(
                         f'<div class="strobo-container">'
                         f'<span class="strobo-lamp"></span>'
-                        f'<span style="font-weight:bold; color:#991b1b; font-size:14px;">{nama_kat.upper()} ({jumlah_over} Berkas)</span>'
+                        f'<span style="font-weight:bold; color:#991b1b; font-size:14px;">{nama_kat.upper()} ({jumlah_over} NB)</span>'
                         f'</div>', 
                         unsafe_allow_html=True
                     )
